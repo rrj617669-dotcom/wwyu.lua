@@ -1,28 +1,27 @@
--- Advanced Universal Auto Clicker (GitHub/DevForum Methods)
-local VirtualInputManager = game:GetService("VirtualInputManager")
+-- Roblox Universal Native Auto Clicker (GitHub Engine)
+local VirtualUser = game:GetService("VirtualUser")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Cleanup previous instances
-if PlayerGui:FindFirstChild("UniversalClickerV3") then
-    PlayerGui.UniversalClickerV3:Destroy()
+-- Cleanup
+if PlayerGui:FindFirstChild("NativeAutoClicker") then
+    PlayerGui.NativeAutoClicker:Destroy()
 end
 
--- Create ScreenGui
+-- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UniversalClickerV3"
+ScreenGui.Name = "NativeAutoClicker"
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999999 -- Priority over game UI
+ScreenGui.DisplayOrder = 9999
 ScreenGui.Parent = PlayerGui
 
--- Control Frame
+-- Main Panel
 local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 200, 0, 130)
 Frame.Position = UDim2.new(0.05, 0, 0.3, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Frame.BorderSizePixel = 0
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 Frame.Active = true
 Frame.Draggable = true
 Frame.Parent = ScreenGui
@@ -34,22 +33,21 @@ UICorner.Parent = Frame
 -- Title
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "Universal Clicker V3"
+Title.Text = "Universal Clicker"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 16
 Title.Parent = Frame
 
--- Target Button
+-- Target Frame (Transparent Area)
 local TargetBtn = Instance.new("TextButton")
-TargetBtn.Size = UDim2.new(0, 40, 0, 40)
-TargetBtn.Position = UDim2.new(0.5, -20, 0.2, 0)
-TargetBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 80)
-TargetBtn.BackgroundTransparency = 0.2
+TargetBtn.Size = UDim2.new(0, 45, 0, 45)
+TargetBtn.Position = UDim2.new(0.5, -22, 0.22, 0)
+TargetBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 50)
+TargetBtn.BackgroundTransparency = 0.5
 TargetBtn.Text = "🎯"
-TargetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-TargetBtn.TextSize = 18
+TargetBtn.TextSize = 20
 TargetBtn.Active = true
 TargetBtn.Draggable = true
 TargetBtn.Parent = ScreenGui
@@ -61,9 +59,9 @@ TargetCorner.Parent = TargetBtn
 -- Toggle Button
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0.85, 0, 0, 35)
-ToggleBtn.Position = UDim2.new(0.075, 0, 0.5, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
-ToggleBtn.Text = "Start Clicker"
+ToggleBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
+ToggleBtn.Text = "START"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 16
@@ -73,60 +71,46 @@ local BtnCorner = Instance.new("UICorner")
 BtnCorner.CornerRadius = UDim.new(0, 6)
 BtnCorner.Parent = ToggleBtn
 
--- Clicker Engine
+-- Logic Engine
 local clicking = false
 
-local function executeUniversalClick()
+local function performNativeClick()
     local targetPos = TargetBtn.AbsolutePosition + (TargetBtn.AbsoluteSize / 2)
-    local x = targetPos.X
-    local y = targetPos.Y + 36 -- Offset compensation for topbar
+    local vecPos = Vector2.new(targetPos.X, targetPos.Y + 36)
 
-    -- Method 1: Physical Mouse Simulation via VirtualInputManager
+    -- Temporary disable target button interaction so click passes through to the game below
+    TargetBtn.Active = false
+    
+    -- Method A: Core VirtualUser Click (Bypasses Roblox UI Blockers)
     pcall(function()
-        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
-        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+        VirtualUser:ClickButton1(vecPos)
     end)
 
-    -- Method 2: Physical Touch Simulation (For Mobile / Touch Interfaces)
-    pcall(function()
-        VirtualInputManager:SendTouchEvent(1, Enum.UserInputState.Begin, x, y)
-        VirtualInputManager:SendTouchEvent(1, Enum.UserInputState.End, x, y)
-    end)
+    -- Method B: Executor Native mouse1click (If supported by your executor)
+    if mouse1click then
+        pcall(function()
+            mouse1click(vecPos.X, vecPos.Y)
+        end)
+    end
 
-    -- Method 3: Direct UI Fires (Fallback)
-    pcall(function()
-        local objects = PlayerGui:GetGuiObjectsAtPosition(targetPos.X, targetPos.Y)
-        for _, obj in ipairs(objects) do
-            if obj:IsA("GuiButton") and obj ~= TargetBtn and obj ~= ToggleBtn then
-                for _, connection in ipairs(getconnections(obj.MouseButton1Down)) do
-                    connection:Fire()
-                end
-                for _, connection in ipairs(getconnections(obj.MouseButton1Click)) do
-                    connection:Fire()
-                end
-                for _, connection in ipairs(getconnections(obj.Activated)) do
-                    connection:Fire()
-                end
-            end
-        end
-    end)
+    TargetBtn.Active = true
 end
 
-local function clickLoop()
+local function loop()
     while clicking do
-        executeUniversalClick()
-        task.wait(0.01) -- High-speed click interval
+        performNativeClick()
+        task.wait(0.005) -- Fast response loop
     end
 end
 
 ToggleBtn.MouseButton1Click:Connect(function()
     clicking = not clicking
     if clicking then
-        ToggleBtn.Text = "Stop Clicker"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-        task.spawn(clickLoop)
+        ToggleBtn.Text = "STOP"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
+        task.spawn(loop)
     else
-        ToggleBtn.Text = "Start Clicker"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
+        ToggleBtn.Text = "START"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
     end
 end)
