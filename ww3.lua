@@ -2,55 +2,22 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Configuration Storage
-local Config = {
-    TargetPosition = nil,
-    RocketAmount = 1,
-    LaunchAll = false,
-    ESPEnabled = false
-}
+-- Target Position Variable
+local TargetPosition = nil
+local SelectingTarget = false
 
--- Load Saved Config if exists
-local ConfigFileName = "RocketScriptConfig.json"
-if readfile and isfile and isfile(ConfigFileName) then
-    pcall(function()
-        local data = HttpService:JSONDecode(readfile(ConfigFileName))
-        if data then
-            Config.RocketAmount = data.RocketAmount or 1
-            Config.LaunchAll = data.LaunchAll or false
-            if data.TargetPosition then
-                Config.TargetPosition = Vector3.new(data.TargetPosition.X, data.TargetPosition.Y, data.TargetPosition.Z)
-            end
-        end
-    end)
-end
-
-local function SaveConfig()
-    if writefile then
-        local dataToSave = {
-            RocketAmount = Config.RocketAmount,
-            LaunchAll = Config.LaunchAll,
-            TargetPosition = Config.TargetPosition and {X = Config.TargetPosition.X, Y = Config.TargetPosition.Y, Z = Config.TargetPosition.Z} or nil
-        }
-        writefile(ConfigFileName, HttpService:JSONEncode(dataToSave))
-    end
-end
-
--- Remotes (From Provided Images)
+-- Remote Setup (From your provided images)
 local MissileRemotes = Workspace:FindFirstChild("MissileAttackRemotes")
 local LaunchRemote = MissileRemotes and MissileRemotes:FindFirstChild("MissileLaunchRequest")
 
--- Simple ScreenGui Builder
+-- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "RocketControlGUI"
+ScreenGui.Name = "FastRocketLauncher"
 ScreenGui.ResetOnSpawn = false
 
--- Executor Compatibility Check for Parent
 if gethui then
     ScreenGui.Parent = gethui()
 elseif syn and syn.protect_gui then
@@ -63,270 +30,130 @@ end
 -- Main Window Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 500, 0, 350)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.Size = UDim2.new(0, 320, 0, 210)
+MainFrame.Position = UDim2.new(0.5, -160, 0.4, -105)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
--- Header Title
+-- Corner Radius
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 8)
+FrameCorner.Parent = MainFrame
+
+-- Title Header
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
-Header.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-Header.Text = "🚀 Rocket Warfare Control Panel"
+Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+Header.Text = "🚀 Fast Multi-Rocket Launcher"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 16
+Header.TextSize = 15
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
--- Sidebar (Tabs)
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 120, 1, -40)
-Sidebar.Position = UDim2.new(0, 0, 0, 40)
-Sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 8)
+HeaderCorner.Parent = Header
 
--- Content Frame
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -120, 1, -40)
-Content.Position = UDim2.new(0, 120, 0, 40)
-Content.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
-Content.BorderSizePixel = 0
-Content.Parent = MainFrame
+-- 1. TARGET BUTTON
+local TargetBtn = Instance.new("TextButton")
+TargetBtn.Size = UDim2.new(0.9, 0, 0, 45)
+TargetBtn.Position = UDim2.new(0.05, 0, 0, 55)
+TargetBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+TargetBtn.Text = "🎯 Select Target Location"
+TargetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TargetBtn.Font = Enum.Font.SourceSansBold
+TargetBtn.TextSize = 14
+TargetBtn.Parent = MainFrame
 
--- Tab Frames Table
-local Tabs = {}
-local TabButtons = {}
+local TargetCorner = Instance.new("UICorner")
+TargetCorner.CornerRadius = UDim.new(0, 6)
+TargetCorner.Parent = TargetBtn
 
-local TabNames = {"Main", "Combat", "Visuals", "Teleport", "Misc", "Settings"}
+-- 2. LAUNCH ALL BUTTON
+local LaunchAllBtn = Instance.new("TextButton")
+LaunchAllBtn.Size = UDim2.new(0.9, 0, 0, 55)
+LaunchAllBtn.Position = UDim2.new(0.05, 0, 0, 115)
+LaunchAllBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+LaunchAllBtn.Text = "💥 LAUNCH ALL ROCKETS NOW"
+LaunchAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LaunchAllBtn.Font = Enum.Font.SourceSansBold
+LaunchAllBtn.TextSize = 16
+LaunchAllBtn.Parent = MainFrame
 
-for i, name in ipairs(TabNames) do
-    -- Create Tab Frame
-    local TabFrame = Instance.new("ScrollingFrame")
-    TabFrame.Name = name .. "Tab"
-    TabFrame.Size = UDim2.new(1, -10, 1, -10)
-    TabFrame.Position = UDim2.new(0, 5, 0, 5)
-    TabFrame.BackgroundTransparency = 1
-    TabFrame.Visible = (i == 1)
-    TabFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
-    TabFrame.ScrollBarThickness = 4
-    TabFrame.Parent = Content
-    Tabs[name] = TabFrame
-
-    -- Create Button
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, -10, 0, 35)
-    Btn.Position = UDim2.new(0, 5, 0, (i - 1) * 40 + 5)
-    Btn.BackgroundColor3 = (i == 1) and Color3.fromRGB(50, 50, 65) or Color3.fromRGB(35, 35, 40)
-    Btn.Text = name
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.Font = Enum.Font.SourceSans
-    Btn.TextSize = 14
-    Btn.Parent = Sidebar
-
-    TabButtons[name] = Btn
-
-    Btn.MouseButton1Click:Connect(function()
-        for tName, tFrame in pairs(Tabs) do
-            tFrame.Visible = (tName == name)
-            TabButtons[tName].BackgroundColor3 = (tName == name) and Color3.fromRGB(50, 50, 65) or Color3.fromRGB(35, 35, 40)
-        end
-    end)
-end
+local LaunchCorner = Instance.new("UICorner")
+LaunchCorner.CornerRadius = UDim.new(0, 6)
+LaunchCorner.Parent = LaunchAllBtn
 
 ---------------------------------------------------------
--- COMBAT TAB CONTROLS
+-- TARGET SELECTION LOGIC (Mobile & PC Compatible)
 ---------------------------------------------------------
-local CombatTab = Tabs["Combat"]
-
--- Set Target Button
-local SetTargetBtn = Instance.new("TextButton")
-SetTargetBtn.Size = UDim2.new(0.9, 0, 0, 35)
-SetTargetBtn.Position = UDim2.new(0.05, 0, 0, 10)
-SetTargetBtn.BackgroundColor3 = Color3.fromRGB(40, 90, 150)
-SetTargetBtn.Text = Config.TargetPosition and ("Target Set: " .. tostring(math.floor(Config.TargetPosition.X)) .. ", " .. tostring(math.floor(Config.TargetPosition.Z))) or "Select Target on Map (Click Ground)"
-SetTargetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SetTargetBtn.Font = Enum.Font.SourceSansBold
-SetTargetBtn.TextSize = 14
-SetTargetBtn.Parent = CombatTab
-
-local SelectingTarget = false
-SetTargetBtn.MouseButton1Click:Connect(function()
+TargetBtn.MouseButton1Click:Connect(function()
     SelectingTarget = true
-    SetTargetBtn.Text = "Click anywhere in the game world..."
+    TargetBtn.Text = "👉 Click/Tap anywhere on Map..."
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if SelectingTarget and input.UserInputType == Enum.UserInputType.MouseButton1 and not gameProcessed then
+    if not SelectingTarget then return end
+
+    local isMouse = input.UserInputType == Enum.UserInputType.MouseButton1
+    local isTouch = input.UserInputType == Enum.UserInputType.Touch
+
+    if (isMouse or isTouch) then
         local mouse = LocalPlayer:GetMouse()
-        if mouse.Hit then
-            Config.TargetPosition = mouse.Hit.Position
-            SetTargetBtn.Text = "Target Set: " .. math.floor(Config.TargetPosition.X) .. ", " .. math.floor(Config.TargetPosition.Y) .. ", " .. math.floor(Config.TargetPosition.Z)
-            SaveConfig()
+        if mouse and mouse.Hit then
+            TargetPosition = mouse.Hit.Position
+            TargetBtn.Text = "✅ Target Set: (" .. math.floor(TargetPosition.X) .. ", " .. math.floor(TargetPosition.Z) .. ")"
             SelectingTarget = false
         end
     end
 end)
 
--- Amount Input Box
-local AmountLabel = Instance.new("TextLabel")
-AmountLabel.Size = UDim2.new(0.9, 0, 0, 20)
-AmountLabel.Position = UDim2.new(0.05, 0, 0, 55)
-AmountLabel.Text = "Rockets Count (1 - 100):"
-AmountLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-AmountLabel.BackgroundTransparency = 1
-AmountLabel.TextXAlignment = Enum.TextXAlignment.Left
-AmountLabel.Parent = CombatTab
-
-local AmountInput = Instance.new("TextBox")
-AmountInput.Size = UDim2.new(0.9, 0, 0, 30)
-AmountInput.Position = UDim2.new(0.05, 0, 0, 80)
-AmountInput.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-AmountInput.Text = tostring(Config.RocketAmount)
-AmountInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-AmountInput.Parent = CombatTab
-
-AmountInput.FocusLost:Connect(function()
-    local num = tonumber(AmountInput.Text)
-    if num then
-        Config.RocketAmount = math.clamp(math.floor(num), 1, 100)
-        AmountInput.Text = tostring(Config.RocketAmount)
-        SaveConfig()
-    end
-end)
-
--- Launch All Toggle
-local LaunchAllBtn = Instance.new("TextButton")
-LaunchAllBtn.Size = UDim2.new(0.9, 0, 0, 30)
-LaunchAllBtn.Position = UDim2.new(0.05, 0, 0, 120)
-LaunchAllBtn.BackgroundColor3 = Config.LaunchAll and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(60, 60, 65)
-LaunchAllBtn.Text = "Launch All Rockets: " .. (Config.LaunchAll and "ON" or "OFF")
-LaunchAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LaunchAllBtn.Parent = CombatTab
-
+---------------------------------------------------------
+-- INSTANT MASS LAUNCH LOGIC
+---------------------------------------------------------
 LaunchAllBtn.MouseButton1Click:Connect(function()
-    Config.LaunchAll = not Config.LaunchAll
-    LaunchAllBtn.BackgroundColor3 = Config.LaunchAll and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(60, 60, 65)
-    LaunchAllBtn.Text = "Launch All Rockets: " .. (Config.LaunchAll and "ON" or "OFF")
-    SaveConfig()
-end)
-
--- LAUNCH BUTTON
-local FireBtn = Instance.new("TextButton")
-FireBtn.Size = UDim2.new(0.9, 0, 0, 45)
-FireBtn.Position = UDim2.new(0.05, 0, 0, 160)
-FireBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-FireBtn.Text = "🔥 LAUNCH ROCKETS"
-FireBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FireBtn.Font = Enum.Font.SourceSansBold
-FireBtn.TextSize = 18
-FireBtn.Parent = CombatTab
-
-FireBtn.MouseButton1Click:Connect(function()
-    if not Config.TargetPosition then
-        FireBtn.Text = "❌ Choose Target First!"
+    if not TargetPosition then
+        TargetBtn.Text = "⚠️ Please Click Here To Set Target First!"
         task.wait(1.5)
-        FireBtn.Text = "🔥 LAUNCH ROCKETS"
+        TargetBtn.Text = "🎯 Select Target Location"
         return
     end
 
     local rocketsFolder = Workspace:FindFirstChild("Rockets")
-    if not rocketsFolder then return end
+    if not rocketsFolder then
+        LaunchAllBtn.Text = "❌ No Rockets Folder Found!"
+        task.wait(1.5)
+        LaunchAllBtn.Text = "💥 LAUNCH ALL ROCKETS NOW"
+        return
+    end
 
-    local availableRockets = rocketsFolder:GetChildren()
-    local countToLaunch = Config.LaunchAll and #availableRockets or math.min(Config.RocketAmount, #availableRockets)
+    local rocketsList = rocketsFolder:GetChildren()
+    if #rocketsList == 0 then
+        LaunchAllBtn.Text = "❌ No Rockets Available!"
+        task.wait(1.5)
+        LaunchAllBtn.Text = "💥 LAUNCH ALL ROCKETS NOW"
+        return
+    end
 
-    for i = 1, countToLaunch do
-        local rocket = availableRockets[i]
-        if rocket and LaunchRemote then
-            -- Sending Launch Remote Request with Target Position and Rocket Instance
-            pcall(function()
-                LaunchRemote:FireServer(Config.TargetPosition, rocket)
+    -- Fire all rockets instantly without delay loop
+    if LaunchRemote then
+        for _, rocket in ipairs(rocketsList) do
+            task.spawn(function()
+                pcall(function()
+                    LaunchRemote:FireServer(TargetPosition, rocket)
+                end)
             end)
         end
+        LaunchAllBtn.Text = "🚀 Launched (" .. tostring(#rocketsList) .. ") Rockets!"
+        task.wait(1.5)
+        LaunchAllBtn.Text = "💥 LAUNCH ALL ROCKETS NOW"
     end
 end)
 
----------------------------------------------------------
--- VISUALS TAB (ESP FOR ROCKETS)
----------------------------------------------------------
-local VisualsTab = Tabs["Visuals"]
-
-local ESPBtn = Instance.new("TextButton")
-ESPBtn.Size = UDim2.new(0.9, 0, 0, 35)
-ESPBtn.Position = UDim2.new(0.05, 0, 0, 10)
-ESPBtn.BackgroundColor3 = Config.ESPEnabled and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(60, 60, 65)
-ESPBtn.Text = "Rocket ESP: " .. (Config.ESPEnabled and "ENABLED" or "DISABLED")
-ESPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ESPBtn.Parent = VisualsTab
-
-local activeBillboards = {}
-
-local function ClearESP()
-    for _, b in pairs(activeBillboards) do
-        b:Destroy()
-    end
-    table.clear(activeBillboards)
-end
-
-local function UpdateESP()
-    ClearESP()
-    if not Config.ESPEnabled then return end
-
-    local rocketsFolder = Workspace:FindFirstChild("Rockets")
-    if rocketsFolder then
-        for _, rocket in ipairs(rocketsFolder:GetChildren()) do
-            local targetPart = rocket:FindFirstChild("Root") or rocket:FindFirstChild("Collide") or rocket:FindFirstChildWhichIsA("BasePart")
-            if targetPart then
-                local bb = Instance.new("BillboardGui")
-                bb.Adornee = targetPart
-                bb.Size = UDim2.new(0, 100, 0, 30)
-                bb.AlwaysOnTop = true
-                
-                local txt = Instance.new("TextLabel")
-                txt.Size = UDim2.new(1, 0, 1, 0)
-                txt.BackgroundTransparency = 1
-                txt.Text = rocket.Name
-                txt.TextColor3 = Color3.fromRGB(255, 80, 80)
-                txt.Font = Enum.Font.SourceSansBold
-                txt.TextSize = 12
-                txt.Parent = bb
-
-                bb.Parent = ScreenGui
-                table.insert(activeBillboards, bb)
-            end
-        end
-    end
-end
-
-ESPBtn.MouseButton1Click:Connect(function()
-    Config.ESPEnabled = not Config.ESPEnabled
-    ESPBtn.BackgroundColor3 = Config.ESPEnabled and Color3.fromRGB(40, 150, 40) or Color3.fromRGB(60, 60, 65)
-    ESPBtn.Text = "Rocket ESP: " .. (Config.ESPEnabled and "ENABLED" or "DISABLED")
-    UpdateESP()
-end)
-
--- Auto-Refresh ESP on new rockets
-if Workspace:FindFirstChild("Rockets") then
-    Workspace.Rockets.ChildAdded:Connect(function()
-        if Config.ESPEnabled then
-            task.wait(0.2)
-            UpdateESP()
-        end
-    end)
-    Workspace.Rockets.ChildRemoved:Connect(function()
-        if Config.ESPEnabled then
-            UpdateESP()
-        end
-    end)
-end
-
----------------------------------------------------------
--- KEYBIND TOGGLE (RightShift)
----------------------------------------------------------
+-- Toggle GUI View (RightShift Key)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
         MainFrame.Visible = not MainFrame.Visible
