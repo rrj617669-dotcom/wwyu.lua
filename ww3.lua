@@ -9,8 +9,8 @@ local LocalPlayer = Players.LocalPlayer
 local TargetPosition = nil
 local SelectingTarget = false
 
--- Remote Setup (From your provided images)
-local MissileRemotes = Workspace:FindFirstChild("MissileAttackRemotes")
+-- Remote Setup
+local MissileRemotes = Workspace:FindFirstChild("MissileAttackRemotes", true)
 local LaunchRemote = MissileRemotes and MissileRemotes:FindFirstChild("MissileLaunchRequest")
 
 -- ScreenGui Setup
@@ -27,7 +27,7 @@ else
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Main Window Frame
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 320, 0, 210)
@@ -38,16 +38,15 @@ MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
--- Corner Radius
 local FrameCorner = Instance.new("UICorner")
 FrameCorner.CornerRadius = UDim.new(0, 8)
 FrameCorner.Parent = MainFrame
 
--- Title Header
+-- Header
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "🚀 Fast Multi-Rocket Launcher"
+Header.Text = "🚀 Instant All-Rocket Launcher"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
 Header.TextSize = 15
 Header.Font = Enum.Font.SourceSansBold
@@ -57,7 +56,7 @@ local HeaderCorner = Instance.new("UICorner")
 HeaderCorner.CornerRadius = UDim.new(0, 8)
 HeaderCorner.Parent = Header
 
--- 1. TARGET BUTTON
+-- Target Button
 local TargetBtn = Instance.new("TextButton")
 TargetBtn.Size = UDim2.new(0.9, 0, 0, 45)
 TargetBtn.Position = UDim2.new(0.05, 0, 0, 55)
@@ -72,7 +71,7 @@ local TargetCorner = Instance.new("UICorner")
 TargetCorner.CornerRadius = UDim.new(0, 6)
 TargetCorner.Parent = TargetBtn
 
--- 2. LAUNCH ALL BUTTON
+-- Launch Button
 local LaunchAllBtn = Instance.new("TextButton")
 LaunchAllBtn.Size = UDim2.new(0.9, 0, 0, 55)
 LaunchAllBtn.Position = UDim2.new(0.05, 0, 0, 115)
@@ -88,7 +87,7 @@ LaunchCorner.CornerRadius = UDim.new(0, 6)
 LaunchCorner.Parent = LaunchAllBtn
 
 ---------------------------------------------------------
--- TARGET SELECTION LOGIC (Mobile & PC Compatible)
+-- TARGET SELECTION
 ---------------------------------------------------------
 TargetBtn.MouseButton1Click:Connect(function()
     SelectingTarget = true
@@ -112,7 +111,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 ---------------------------------------------------------
--- INSTANT MASS LAUNCH LOGIC
+-- AUTO SEARCH & LAUNCH LOGIC
 ---------------------------------------------------------
 LaunchAllBtn.MouseButton1Click:Connect(function()
     if not TargetPosition then
@@ -122,7 +121,9 @@ LaunchAllBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    local rocketsFolder = Workspace:FindFirstChild("Rockets")
+    -- البحث المباشر والعميق عن مجلد الصواريخ في أي مكان في اللعبة
+    local rocketsFolder = Workspace:FindFirstChild("Rockets", true)
+    
     if not rocketsFolder then
         LaunchAllBtn.Text = "❌ No Rockets Folder Found!"
         task.wait(1.5)
@@ -138,7 +139,7 @@ LaunchAllBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    -- Fire all rockets instantly without delay loop
+    -- إطلاق الصواريخ دفعة واحدة
     if LaunchRemote then
         for _, rocket in ipairs(rocketsList) do
             task.spawn(function()
@@ -153,7 +154,7 @@ LaunchAllBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Toggle GUI View (RightShift Key)
+-- Toggle Key
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
         MainFrame.Visible = not MainFrame.Visible
