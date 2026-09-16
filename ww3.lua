@@ -1,119 +1,85 @@
--- Custom No Recoil GUI for Map Framework (Executor / Luau)
-local CoreGui = game:GetService("CoreGui")
+-- تحميل مكتبة WindUI
+local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
+
+-- الخدمات واللاعب المحلي
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
 
--- 1. إنشاء واجهة المستخدم (GUI)
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MapNoRecoilGUI"
-ScreenGui.ResetOnSpawn = false
+-- المتغيرات العامة للسكربت
+getgenv().AutoFire = false
+getgenv().FireDelay = 0.05
 
-if syn and syn.protect_gui then
-    syn.protect_gui(ScreenGui)
-    ScreenGui.Parent = CoreGui
-elseif gethui then
-    ScreenGui.Parent = gethui()
-else
-    ScreenGui.Parent = CoreGui
-end
+-- إنشاء النافذة الرئيسية
+local Window = WindUI:CreateWindow({
+    Title = "Gun Controller Hub",
+    Icon = "rbxassetid://10734943902",
+    Author = "Roblox Developer",
+    Folder = "GunScriptConfig",
+    Size = UDim2.fromOffset(500, 350),
+    Transparent = true,
+    Theme = "Dark",
+    SideBarWidth = 160,
+    HasOutline = true
+})
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 230, 0, 140)
-MainFrame.Position = UDim2.new(0.5, -115, 0.4, -70)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
+-- إنشاء تبويب الأسلحة
+local MainTab = Window:Tab({
+    Title = "الأسلحة والقتال",
+    Icon = "crosshair"
+})
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = MainFrame
+-- قسم التحكم بالإطلاق
+MainTab:Section({ Title = "إعدادات السلاح (OnActivate)" })
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, 0, 0, 40)
-TitleLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-TitleLabel.Text = "Custom No Recoil"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 16
-TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.Parent = MainFrame
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = TitleLabel
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Size = UDim2.new(0.85, 0, 0, 45)
-ToggleButton.Position = UDim2.new(0.075, 0, 0.48, 0)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-ToggleButton.Text = "No Recoil: OFF"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 16
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.Parent = MainFrame
-
-local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 8)
-ButtonCorner.Parent = ToggleButton
-
-----------------------------------------------------
--- 2. منطق تجميد الارتداد (No Recoil Logic)
-----------------------------------------------------
-local enabled = false
-local isMouseDown = false
-local lockedPitch = 0
-local renderConnection = nil
-
--- التقاط بدء وانهاء الضغط على الزر الأيسر للماوس
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        isMouseDown = true
-        local _, pitch, _ = Camera.CFrame:ToOrientation()
-        lockedPitch = pitch
+-- زر تفعيل الإطلاق التلقائي
+MainTab:Toggle({
+    Title = "إطلاق نار تلقائي (Auto Fire)",
+    Desc = "استدعاء OnActivate بشكل مستمر وسريع",
+    Value = false,
+    Callback = function(State)
+        getgenv().AutoFire = State
     end
-end)
+})
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        isMouseDown = false
+-- شريط التحكم بسرعة الإطلاق
+MainTab:Slider({
+    Title = "سرعة الإطلاق (Delay)",
+    Desc = "المدة بين كل طلقة (بالثواني)",
+    Step = 0.01,
+    Value = { Min = 0.01, Max = 0.5, Default = 0.05 },
+    Callback = function(Value)
+        getgenv().FireDelay = Value
     end
-end)
+})
 
--- تصفير أي محاولة لرفع الكاميرا رأسياً أثناء الإطلاق
-local function processNoRecoil()
-    if not enabled or not isMouseDown then return end
-    
-    local x, y, z = Camera.CFrame:ToOrientation()
-    -- قفل الارتداد الرأسي (Pitch) لمنع ارتفاع السلاح للأعلى
-    Camera.CFrame = CFrame.new(Camera.CFrame.Position) * CFrame.Angles(lockedPitch, y, z)
-end
-
--- زر التفعيل والإيقاف
-ToggleButton.MouseButton1Click:Connect(function()
-    enabled = not enabled
-    
-    if enabled then
-        ToggleButton.Text = "No Recoil: ON"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
-        
-        renderConnection = RunService.RenderStepped:Connect(processNoRecoil)
-    else
-        ToggleButton.Text = "No Recoil: OFF"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-        
-        if renderConnection then
-            renderConnection:Disconnect()
-            renderConnection = nil
+-- زر تفعيل طلقة واحدة فورية
+MainTab:Button({
+    Title = "إطلاق طلقة فورية",
+    Desc = "تفعيل OnActivate مرة واحدة فوراً",
+    Callback = function()
+        local character = LocalPlayer.Character
+        if character then
+            local tool = character:FindFirstChildOfClass("Tool")
+            if tool and tool:FindFirstChild("OnActivate") then
+                tool.OnActivate:FireServer()
+            end
         end
+    end
+})
+
+-- الحلقة التكرارية للخلفية (Auto Fire Loop)
+task.spawn(function()
+    while true do
+        if getgenv().AutoFire then
+            local character = LocalPlayer.Character
+            if character then
+                local tool = character:FindFirstChildOfClass("Tool")
+                -- التحقق من وجود السلاح وريموت OnActivate
+                if tool and tool:FindFirstChild("OnActivate") then
+                    tool.OnActivate:FireServer()
+                end
+            end
+        end
+        task.wait(getgenv().FireDelay)
     end
 end)
