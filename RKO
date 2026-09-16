@@ -14,6 +14,9 @@ getgenv().PlayerSpeed = 32
 
 getgenv().FOVRadius = 180 -- نطاق دائرة الكشف
 getgenv().PredictionFactor = 0.12 -- نظام وزن البنق وتوقع الحركة
+getgenv().AimOffset = Vector3.new(0, 0.7, 0) -- 🎯 وزنة ارتفاع الرصاص لضمان الهيدشوت وعدم النزول للأسفل
+
+local LockedTarget = nil -- المتغير المسؤول عن تثبيت الايم على نفس الشخص وعدم تغييره عشوائياً
 
 -- Cleanup Old GUI
 if gethui then
@@ -80,7 +83,7 @@ end)
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
-Header.Text = "🔥 Smart Lock & Headshot Hub"
+Header.Text = "🔥 Fixed Target Lock & Hub"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
 Header.TextSize = 13
 Header.Font = Enum.Font.SourceSansBold
@@ -109,7 +112,7 @@ local function CreateButton(text, posY, color)
     return btn
 end
 
-local SmartAimbotBtn = CreateButton("🎯 Smart Lock: OFF", 50, Color3.fromRGB(200, 40, 40))
+local SmartAimbotBtn = CreateButton("🎯 Target Lock: OFF", 50, Color3.fromRGB(200, 40, 40))
 local ESPBtn = CreateButton("👁️ Player ESP: OFF", 110, Color3.fromRGB(200, 40, 40))
 local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 170, Color3.fromRGB(200, 40, 40))
 
@@ -130,9 +133,18 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ---------------------------------------------------------
--- SMART TARGET FINDER
+-- TARGET LOCK ENGINE (يثبت على شخص واحد ولا يتغير عشوائياً)
 ---------------------------------------------------------
-local function GetBestTarget()
+local function GetLockedTarget()
+    -- إذا كان الهدف السابق لا يزال حياً وموجوداً، استمر بالتثبيت عليه تماماً
+    if LockedTarget and LockedTarget.Parent and LockedTarget.Parent:FindFirstChildOfClass("Humanoid") then
+        local humanoid = LockedTarget.Parent:FindFirstChildOfClass("Humanoid")
+        if humanoid.Health > 0 then
+            return LockedTarget
+        end
+    end
+
+    -- إذا لم يكن هناك هدف مثبت، ابحث عن أقرب هدف داخل الدائرة لتبدأ القفل عليه
     local bestTarget = nil
     local minDistance = getgenv().FOVRadius
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -145,7 +157,7 @@ local function GetBestTarget()
             if humanoid and humanoid.Health > 0 then
                 local head = char:FindFirstChild("Head")
                 if head then
-                    local predictedPos = head.Position + (head.AssemblyLinearVelocity * getgenv().PredictionFactor)
+                    local predictedPos = head.Position + getgenv().AimOffset + (head.AssemblyLinearVelocity * getgenv().PredictionFactor)
                     local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
                     
                     if onScreen then
@@ -159,19 +171,21 @@ local function GetBestTarget()
             end
         end
     end
-    return bestTarget
+    
+    LockedTarget = bestTarget
+    return LockedTarget
 end
 
----------------------------------------------------------
--- AIM LOCK ENGINE
----------------------------------------------------------
 RunService.RenderStepped:Connect(function()
     if getgenv().SmartAimbotEnabled then
-        local targetHead = GetBestTarget()
+        local targetHead = GetLockedTarget()
         if targetHead then
-            local lockedCFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position + (targetHead.AssemblyLinearVelocity * getgenv().PredictionFactor))
+            local adjustedPos = targetHead.Position + getgenv().AimOffset + (targetHead.AssemblyLinearVelocity * getgenv().PredictionFactor)
+            local lockedCFrame = CFrame.new(Camera.CFrame.Position, adjustedPos)
             Camera.CFrame = lockedCFrame
         end
+    else
+        LockedTarget = nil -- إعادة تعيين الهدف عند إيقاف الزر
     end
 end)
 
@@ -247,8 +261,11 @@ end)
 ---------------------------------------------------------
 SmartAimbotBtn.MouseButton1Click:Connect(function()
     getgenv().SmartAimbotEnabled = not getgenv().SmartAimbotEnabled
-    SmartAimbotBtn.Text = getgenv().SmartAimbotEnabled and "🎯 Smart Lock: ON" or "🎯 Smart Lock: OFF"
+    SmartAimbotBtn.Text = getgenv().SmartAimbotEnabled and "🎯 Target Lock: ON" or "🎯 Target Lock: OFF"
     SmartAimbotBtn.BackgroundColor3 = getgenv().SmartAimbotEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+    if not getgenv().SmartAimbotEnabled then
+        LockedTarget = nil
+    end
 end)
 
 ESPBtn.MouseButton1Click:Connect(function()
