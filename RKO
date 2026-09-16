@@ -2,6 +2,7 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
@@ -13,9 +14,18 @@ getgenv().SpeedEnabled = false
 getgenv().PlayerSpeed = 32
 getgenv().FireDelay = 0.05
 
+-- إشعار الترحيب وحقوق وائل عند بدء التشغيل
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "حقوق وائل",
+        Text = "تم تشغيل سكربت وائل بنجاح!",
+        Duration = 5
+    })
+end)
+
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "GunControllerGUI"
+ScreenGui.Name = "WaelGunControllerGUI"
 ScreenGui.ResetOnSpawn = false
 
 if gethui then
@@ -30,8 +40,8 @@ end
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 320)
-MainFrame.Position = UDim2.new(0.5, -150, 0.35, -160)
+MainFrame.Size = UDim2.new(0, 300, 0, 350) -- تم تكبير الارتفاع لاستيعاب الحقوق
+MainFrame.Position = UDim2.new(0.5, -150, 0.35, -175)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -46,9 +56,9 @@ FrameCorner.Parent = MainFrame
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "⚡ Ultimate Weapon & Name ESP Hub"
+Header.Text = "⚡ سكربت وائل | Wael Script"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 14
+Header.TextSize = 15
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
@@ -81,6 +91,17 @@ local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 100, Color3.fromRGB(200,
 local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 150, Color3.fromRGB(200, 40, 40))
 local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 200, Color3.fromRGB(200, 40, 40))
 local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 250, Color3.fromRGB(0, 120, 215))
+
+-- حقوق وائل بخط صغير في أسفل القائمة
+local CreditsLabel = Instance.new("TextLabel")
+CreditsLabel.Size = UDim2.new(1, 0, 0, 25)
+CreditsLabel.Position = UDim2.new(0, 0, 0, 315)
+CreditsLabel.BackgroundTransparency = 1
+CreditsLabel.Text = "حقوق وائل | Developed by Wael"
+CreditsLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
+CreditsLabel.TextSize = 11
+CreditsLabel.Font = Enum.Font.SourceSansItalic
+CreditsLabel.Parent = MainFrame
 
 ---------------------------------------------------------
 -- LOGIC & SYSTEMS
@@ -154,7 +175,7 @@ local function ReloadTool()
     end
 end
 
--- 3. ENHANCED PLAYER ESP WITH NAMES (BillboardGui + Highlight)
+-- 3. ENHANCED PLAYER ESP WITH NAMES
 local function CreateNameTag(character, player)
     local head = character:FindFirstChild("Head")
     if not head then return end
@@ -192,7 +213,6 @@ local function UpdateESP()
             local nameTag = head and head:FindFirstChild("ESPNameTag")
 
             if getgenv().ESPEnabled then
-                -- Highlight setup
                 if not highlight then
                     highlight = Instance.new("Highlight")
                     highlight.Name = "ESPHighlight"
@@ -202,8 +222,6 @@ local function UpdateESP()
                     highlight.OutlineTransparency = 0
                     highlight.Parent = char
                 end
-                
-                -- NameTag setup
                 CreateNameTag(char, plr)
             else
                 if highlight then highlight:Destroy() end
