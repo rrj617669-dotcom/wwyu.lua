@@ -7,31 +7,32 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Global Settings
-getgenv().SmartAimbotEnabled = false
-getgenv().ESPEnabled = false
-getgenv().SpeedEnabled = false
-getgenv().PlayerSpeed = 32
+getgenv().AimSettings = {
+    Enabled = false,
+    ESPEnabled = false,
+    SpeedEnabled = false,
+    PlayerSpeed = 32,
+    TargetPart = "Head",
+    Prediction = 0.12,
+    OffsetY = Vector3.new(0, 0.6, 0) -- 🎯 وزنة ارتفاع الرصاص لضمان الهيدشوت وعدم النزول تحت
+}
 
-getgenv().FOVRadius = 180 -- نطاق دائرة الكشف
-getgenv().PredictionFactor = 0.12 -- نظام وزن البنق وتوقع الحركة
-getgenv().AimOffset = Vector3.new(0, 0.8, 0) -- 🎯 وزنة ارتفاع الرصاص لضمان الهيدشوت 100%
-
-local LockedTarget = nil -- التثبيت على هدف واحد
+local LockedTarget = nil
 
 -- Cleanup Old GUI
 if gethui then
     for _, gui in ipairs(gethui():GetChildren()) do
-        if gui.Name == "AdvancedCombatGUI" then gui:Destroy() end
+        if gui.Name == "UltimateGUIHub" then gui:Destroy() end
     end
 elseif LocalPlayer:FindFirstChild("PlayerGui") then
     for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-        if gui.Name == "AdvancedCombatGUI" then gui:Destroy() end
+        if gui.Name == "UltimateGUIHub" then gui:Destroy() end
     end
 end
 
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AdvancedCombatGUI"
+ScreenGui.Name = "UltimateGUIHub"
 ScreenGui.ResetOnSpawn = false
 
 if gethui then
@@ -43,15 +44,15 @@ else
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Toggle UI Button for Mobile
+-- Toggle UI Floating Button (لإخفاء وإظهار القائمة)
 local ToggleGuiBtn = Instance.new("TextButton")
 ToggleGuiBtn.Name = "ToggleGuiBtn"
-ToggleGuiBtn.Size = UDim2.new(0, 45, 0, 45)
+ToggleGuiBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleGuiBtn.Position = UDim2.new(0.05, 0, 0.15, 0)
-ToggleGuiBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-ToggleGuiBtn.Text = "🎯"
+ToggleGuiBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+ToggleGuiBtn.Text = "⚡"
 ToggleGuiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleGuiBtn.TextSize = 22
+ToggleGuiBtn.TextSize = 24
 ToggleGuiBtn.Active = true
 ToggleGuiBtn.Draggable = true
 ToggleGuiBtn.Parent = ScreenGui
@@ -60,40 +61,40 @@ local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(1, 0)
 ToggleCorner.Parent = ToggleGuiBtn
 
--- Main Frame
+-- Main Frame (القائمة الرئيسية)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 260, 0, 220)
+MainFrame.Size = UDim2.new(0, 260, 0, 240)
 MainFrame.Position = UDim2.new(0.5, -130, 0.25, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 10)
+FrameCorner.CornerRadius = UDim.new(0, 12)
 FrameCorner.Parent = MainFrame
 
 ToggleGuiBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Header
+-- Header (عنوان القائمة)
 local Header = Instance.new("TextLabel")
-Header.Size = UDim2.new(1, 0, 0, 40)
-Header.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
-Header.Text = "⚡ Silent Aim & Lock Hub"
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+Header.Text = "🔥 Ultimate Aim & Hitfix Hub"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
 Header.TextSize = 13
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
 local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 10)
+HeaderCorner.CornerRadius = UDim.new(0, 12)
 HeaderCorner.Parent = Header
 
--- Button Creator
+-- Button Creator Function (لصنع الأزرار باحترافية)
 local function CreateButton(text, posY, color)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.9, 0, 0, 45)
@@ -112,94 +113,56 @@ local function CreateButton(text, posY, color)
     return btn
 end
 
-local SmartAimbotBtn = CreateButton("🎯 Silent Lock: OFF", 50, Color3.fromRGB(200, 40, 40))
-local ESPBtn = CreateButton("👁️ Player ESP: OFF", 110, Color3.fromRGB(200, 40, 40))
-local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 170, Color3.fromRGB(200, 40, 40))
+local AimBtn = CreateButton("🎯 Aimbot Lock: OFF", 55, Color3.fromRGB(200, 40, 40))
+local ESPBtn = CreateButton("👁️ Player ESP: OFF", 115, Color3.fromRGB(200, 40, 40))
+local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 175, Color3.fromRGB(200, 40, 40))
 
 ---------------------------------------------------------
--- FOV CIRCLE VISUALIZER
+-- TARGET LOCK & HITFIX ENGINE
 ---------------------------------------------------------
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1.5
-FOVCircle.Color = Color3.fromRGB(0, 255, 128)
-FOVCircle.Filled = false
-FOVCircle.Transparency = 0.6
-FOVCircle.Radius = getgenv().FOVRadius
-FOVCircle.Visible = false
-
-RunService.RenderStepped:Connect(function()
-    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    FOVCircle.Visible = getgenv().SmartAimbotEnabled
-end)
-
----------------------------------------------------------
--- TARGET LOCK FINDER (يثبت على هدف واحد)
----------------------------------------------------------
-local function GetLockedTarget()
+local function GetClosestTarget()
     if LockedTarget and LockedTarget.Parent and LockedTarget.Parent:FindFirstChildOfClass("Humanoid") then
-        local humanoid = LockedTarget.Parent:FindFirstChildOfClass("Humanoid")
-        if humanoid.Health > 0 then
+        if LockedTarget.Parent.Humanoid.Health > 0 then
             return LockedTarget
         end
     end
 
-    local bestTarget = nil
-    local minDistance = getgenv().FOVRadius
+    local closestPart = nil
+    local shortestDist = 200 -- نطاق الكشف (FOV Radius)
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             local char = plr.Character
             local humanoid = char:FindFirstChildOfClass("Humanoid")
-            
             if humanoid and humanoid.Health > 0 then
-                local head = char:FindFirstChild("Head")
-                if head then
-                    local predictedPos = head.Position + getgenv().AimOffset + (head.AssemblyLinearVelocity * getgenv().PredictionFactor)
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
+                local part = char:FindFirstChild(getgenv().AimSettings.TargetPart)
+                if part then
+                    local targetWorldPos = part.Position + getgenv().AimSettings.OffsetY + (part.AssemblyLinearVelocity * getgenv().AimSettings.Prediction)
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetWorldPos)
                     
                     if onScreen then
-                        local magnitude = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        if magnitude < minDistance then
-                            minDistance = magnitude
-                            bestTarget = head
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if dist < shortestDist then
+                            shortestDist = dist
+                            closestPart = part
                         end
                     end
                 end
             end
         end
     end
-    
-    LockedTarget = bestTarget
+    LockedTarget = closestPart
     return LockedTarget
 end
 
----------------------------------------------------------
--- AIM LOCK & SILENT AIM ENGINE
----------------------------------------------------------
+-- حلقة التثبيت المانعة لانحراف الرصاص
 RunService.RenderStepped:Connect(function()
-    if getgenv().SmartAimbotEnabled then
-        local targetHead = GetLockedTarget()
-        if targetHead then
-            local finalTargetPos = targetHead.Position + getgenv().AimOffset + (targetHead.AssemblyLinearVelocity * getgenv().PredictionFactor)
-            
-            -- 1. تثبيت الكاميرا على الهدف
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, finalTargetPos)
-            
-            -- 2. نظام توجيه الرصاص (Silent Aim Hook Simulation)
-            pcall(function()
-                local char = LocalPlayer.Character
-                if char then
-                    local tool = char:FindFirstChildOfClass("Tool")
-                    if tool then
-                        -- توجيه أداة السلاح محلياً لضمان خروج الطلقة نحو الرأس مباشرة
-                        local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildOfClass("Part")
-                        if handle then
-                            tool.GripCFrame = CFrame.new()
-                        end
-                    end
-                end
-            end)
+    if getgenv().AimSettings.Enabled then
+        local targetPart = GetClosestTarget()
+        if targetPart then
+            local finalPos = targetPart.Position + getgenv().AimSettings.OffsetY + (targetPart.AssemblyLinearVelocity * getgenv().AimSettings.Prediction)
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, finalPos)
         end
     else
         LockedTarget = nil
@@ -212,7 +175,6 @@ end)
 local function CreateNameTag(character, player)
     local head = character:FindFirstChild("Head")
     if not head then return end
-
     local billboard = head:FindFirstChild("ESPNameTag")
     if not billboard then
         billboard = Instance.new("BillboardGui")
@@ -225,10 +187,9 @@ local function CreateNameTag(character, player)
         local nameLabel = Instance.new("TextLabel")
         nameLabel.Size = UDim2.new(1, 0, 1, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+        nameLabel.Text = player.DisplayName
         nameLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
         nameLabel.TextStrokeTransparency = 0
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.SourceSansBold
         nameLabel.TextSize = 13
         nameLabel.Parent = billboard
@@ -245,14 +206,13 @@ local function UpdateESP()
             local head = char:FindFirstChild("Head")
             local nameTag = head and head:FindFirstChild("ESPNameTag")
 
-            if getgenv().ESPEnabled then
+            if getgenv().AimSettings.ESPEnabled then
                 if not highlight then
                     highlight = Instance.new("Highlight")
                     highlight.Name = "ESPHighlight"
                     highlight.FillColor = Color3.fromRGB(255, 0, 50)
                     highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
                     highlight.FillTransparency = 0.5
-                    highlight.OutlineTransparency = 0
                     highlight.Parent = char
                 end
                 CreateNameTag(char, plr)
@@ -268,42 +228,40 @@ end
 -- SPEED BOOST SYSTEM
 ---------------------------------------------------------
 RunService.Stepped:Connect(function()
-    if getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().PlayerSpeed
+    if getgenv().AimSettings.SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().AimSettings.PlayerSpeed
     end
 end)
 
 ---------------------------------------------------------
--- BUTTON CONNECTIONS
+-- BUTTON EVENTS (تفعيل الأزرار من الواجهة)
 ---------------------------------------------------------
-SmartAimbotBtn.MouseButton1Click:Connect(function()
-    getgenv().SmartAimbotEnabled = not getgenv().SmartAimbotEnabled
-    SmartAimbotBtn.Text = getgenv().SmartAimbotEnabled and "🎯 Silent Lock: ON" or "🎯 Silent Lock: OFF"
-    SmartAimbotBtn.BackgroundColor3 = getgenv().SmartAimbotEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-    if not getgenv().SmartAimbotEnabled then
-        LockedTarget = nil
-    end
+AimBtn.MouseButton1Click:Connect(function()
+    getgenv().AimSettings.Enabled = not getgenv().AimSettings.Enabled
+    AimBtn.Text = getgenv().AimSettings.Enabled and "🎯 Aimbot Lock: ON" or "🎯 Aimbot Lock: OFF"
+    AimBtn.BackgroundColor3 = getgenv().AimSettings.Enabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+    if not getgenv().AimSettings.Enabled then LockedTarget = nil end
 end)
 
 ESPBtn.MouseButton1Click:Connect(function()
-    getgenv().ESPEnabled = not getgenv().ESPEnabled
-    ESPBtn.Text = getgenv().ESPEnabled and "👁️ Player ESP: ON" or "👁️ Player ESP: OFF"
-    ESPBtn.BackgroundColor3 = getgenv().ESPEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+    getgenv().AimSettings.ESPEnabled = not getgenv().AimSettings.ESPEnabled
+    ESPBtn.Text = getgenv().AimSettings.ESPEnabled and "👁️ Player ESP: ON" or "👁️ Player ESP: OFF"
+    ESPBtn.BackgroundColor3 = getgenv().AimSettings.ESPEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
     UpdateESP()
 end)
 
 SpeedBtn.MouseButton1Click:Connect(function()
-    getgenv().SpeedEnabled = not getgenv().SpeedEnabled
-    SpeedBtn.Text = getgenv().SpeedEnabled and "⚡ Speed Boost: ON" or "⚡ Speed Boost: OFF"
-    SpeedBtn.BackgroundColor3 = getgenv().SpeedEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-    if not getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+    getgenv().AimSettings.SpeedEnabled = not getgenv().AimSettings.SpeedEnabled
+    SpeedBtn.Text = getgenv().AimSettings.SpeedEnabled and "⚡ Speed Boost: ON" or "⚡ Speed Boost: OFF"
+    SpeedBtn.BackgroundColor3 = getgenv().AimSettings.SpeedEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+    if not getgenv().AimSettings.SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
     end
 end)
 
 task.spawn(function()
     while true do
-        if getgenv().ESPEnabled then
+        if getgenv().AimSettings.ESPEnabled then
             UpdateESP()
         end
         task.wait(1.5)
