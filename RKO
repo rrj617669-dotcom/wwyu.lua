@@ -1,84 +1,135 @@
--- تحميل مكتبة WindUI
-local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
-
--- الخدمات واللاعب المحلي
+-- Services
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- المتغيرات العامة للسكربت
-getgenv().AutoFire = false
+-- Global Variables
+getgenv().AutoFireEnabled = false
 getgenv().FireDelay = 0.05
 
--- إنشاء النافذة الرئيسية
-local Window = WindUI:CreateWindow({
-    Title = "Gun Controller Hub",
-    Icon = "rbxassetid://10734943902",
-    Author = "Roblox Developer",
-    Folder = "GunScriptConfig",
-    Size = UDim2.fromOffset(500, 350),
-    Transparent = true,
-    Theme = "Dark",
-    SideBarWidth = 160,
-    HasOutline = true
-})
+-- ScreenGui Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "GunControllerGUI"
+ScreenGui.ResetOnSpawn = false
 
--- إنشاء تبويب الأسلحة
-local MainTab = Window:Tab({
-    Title = "الأسلحة والقتال",
-    Icon = "crosshair"
-})
+if gethui then
+    ScreenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = CoreGui
+else
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
--- قسم التحكم بالإطلاق
-MainTab:Section({ Title = "إعدادات السلاح (OnActivate)" })
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 300, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -150, 0.4, -90)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
 
--- زر تفعيل الإطلاق التلقائي
-MainTab:Toggle({
-    Title = "إطلاق نار تلقائي (Auto Fire)",
-    Desc = "استدعاء OnActivate بشكل مستمر وسريع",
-    Value = false,
-    Callback = function(State)
-        getgenv().AutoFire = State
-    end
-})
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 8)
+FrameCorner.Parent = MainFrame
 
--- شريط التحكم بسرعة الإطلاق
-MainTab:Slider({
-    Title = "سرعة الإطلاق (Delay)",
-    Desc = "المدة بين كل طلقة (بالثواني)",
-    Step = 0.01,
-    Value = { Min = 0.01, Max = 0.5, Default = 0.05 },
-    Callback = function(Value)
-        getgenv().FireDelay = Value
-    end
-})
+-- Header Title
+local Header = Instance.new("TextLabel")
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+Header.Text = "🔫 Weapon Auto-Trigger"
+Header.TextColor3 = Color3.fromRGB(255, 255, 255)
+Header.TextSize = 15
+Header.Font = Enum.Font.SourceSansBold
+Header.Parent = MainFrame
 
--- زر تفعيل طلقة واحدة فورية
-MainTab:Button({
-    Title = "إطلاق طلقة فورية",
-    Desc = "تفعيل OnActivate مرة واحدة فوراً",
-    Callback = function()
-        local character = LocalPlayer.Character
-        if character then
-            local tool = character:FindFirstChildOfClass("Tool")
-            if tool and tool:FindFirstChild("OnActivate") then
-                tool.OnActivate:FireServer()
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 8)
+HeaderCorner.Parent = Header
+
+-- Auto Fire Toggle Button
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 50)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0, 55)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+ToggleBtn.Text = "🔴 Auto Fire: OFF"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.TextSize = 15
+ToggleBtn.Parent = MainFrame
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleBtn
+
+-- Instant Shot Button
+local SingleShotBtn = Instance.new("TextButton")
+SingleShotBtn.Size = UDim2.new(0.9, 0, 0, 45)
+SingleShotBtn.Position = UDim2.new(0.05, 0, 0, 115)
+SingleShotBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+SingleShotBtn.Text = "💥 Trigger Weapon Once"
+SingleShotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SingleShotBtn.Font = Enum.Font.SourceSansBold
+SingleShotBtn.TextSize = 14
+SingleShotBtn.Parent = MainFrame
+
+local SingleCorner = Instance.new("UICorner")
+SingleCorner.CornerRadius = UDim.new(0, 6)
+SingleCorner.Parent = SingleShotBtn
+
+---------------------------------------------------------
+-- WEAPON TRIGGER LOGIC
+---------------------------------------------------------
+local function ActivateTool()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then return end
+
+    -- 1. المحاولة عبر تفعيل السلاح المباشر (Tool:Activate)
+    pcall(function()
+        tool:Activate()
+    end)
+
+    -- 2. المحاولة عبر الأسطر المكتشفة داخل السلاح (OnActivate)
+    local onActivate = tool:FindFirstChild("OnActivate")
+    if onActivate then
+        pcall(function()
+            if onActivate:IsA("RemoteEvent") then
+                onActivate:FireServer()
+            elseif onActivate:IsA("BindableEvent") then
+                onActivate:Fire()
             end
-        end
+        end)
     end
-})
+end
 
--- الحلقة التكرارية للخلفية (Auto Fire Loop)
+-- Toggle Control
+ToggleBtn.MouseButton1Click:Connect(function()
+    getgenv().AutoFireEnabled = not getgenv().AutoFireEnabled
+    if getgenv().AutoFireEnabled then
+        ToggleBtn.Text = "🟢 Auto Fire: ON"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
+    else
+        ToggleBtn.Text = "🔴 Auto Fire: OFF"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+    end
+end)
+
+-- Single Shot Control
+SingleShotBtn.MouseButton1Click:Connect(function()
+    ActivateTool()
+end)
+
+-- Main Loop
 task.spawn(function()
     while true do
-        if getgenv().AutoFire then
-            local character = LocalPlayer.Character
-            if character then
-                local tool = character:FindFirstChildOfClass("Tool")
-                -- التحقق من وجود السلاح وريموت OnActivate
-                if tool and tool:FindFirstChild("OnActivate") then
-                    tool.OnActivate:FireServer()
-                end
-            end
+        if getgenv().AutoFireEnabled then
+            ActivateTool()
         end
         task.wait(getgenv().FireDelay)
     end
