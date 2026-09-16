@@ -1,157 +1,120 @@
--- Roblox Professional GUI: Highlight ESP & No Recoil
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+-- Roblox Executor Universal No Recoil GUI
 local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
--- Global Toggles
-local ESP_Enabled = false
-local NoRecoil_Enabled = false
-
--- 1. Create Main ScreenGui
+-- إنشاء واجهة المستخدم (ScreenGui)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ProCombatGUI"
+ScreenGui.Name = "NoRecoilGUI"
 ScreenGui.ResetOnSpawn = false
 
--- Safety attach to CoreGui or PlayerGui
+-- تجنب اكتشاف الواجهة أو التداخل مع Roblox CoreGui
 if syn and syn.protect_gui then
     syn.protect_gui(ScreenGui)
     ScreenGui.Parent = CoreGui
 elseif gethui then
     ScreenGui.Parent = gethui()
 else
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.Parent = CoreGui
 end
 
--- Main Frame (Window)
+-- الإطار الرئيسي (Main Frame)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 220, 0, 170)
-MainFrame.Position = UDim2.new(0.5, -110, 0.4, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.Size = UDim2.new(0, 220, 0, 130)
+MainFrame.Position = UDim2.new(0.5, -110, 0.4, -65)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true
+MainFrame.Draggable = true -- إمكانية سحب النافذة
 MainFrame.Parent = ScreenGui
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 8)
-Corner.Parent = MainFrame
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
--- Title
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-Title.Text = "Combat Hub v1.0"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-Title.Font = Enum.Font.SourceSansBold
-Title.Parent = MainFrame
+-- شريط العنوان (Title Bar)
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Size = UDim2.new(1, 0, 0, 35)
+TitleLabel.Position = UDim2.new(0, 0, 0, 0)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleLabel.Text = "No Recoil Script"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 16
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Parent = MainFrame
 
 local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = Title
+TitleCorner.Parent = TitleLabel
 
--- ESP Toggle Button
-local ESPButton = Instance.new("TextButton")
-ESPButton.Size = UDim2.new(0.9, 0, 0, 40)
-ESPButton.Position = UDim2.new(0.05, 0, 0.3, 0)
-ESPButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-ESPButton.Text = "ESP (Highlight): OFF"
-ESPButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ESPButton.TextSize = 14
-ESPButton.Font = Enum.Font.SourceSansSemibold
-ESPButton.Parent = MainFrame
+-- زر التشغيل/الإيقاف (Toggle Button)
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.new(0.85, 0, 0, 45)
+ToggleButton.Position = UDim2.new(0.075, 0, 0.45, 0)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50) -- أحمر (معطل)
+ToggleButton.Text = "No Recoil: OFF"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 16
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Parent = MainFrame
 
-local BtnCorner1 = Instance.new("UICorner")
-BtnCorner1.CornerRadius = UDim.new(0, 6)
-BtnCorner1.Parent = ESPButton
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 6)
+ButtonCorner.Parent = ToggleButton
 
--- No Recoil Toggle Button
-local RecoilButton = Instance.new("TextButton")
-RecoilButton.Size = UDim2.new(0.9, 0, 0, 40)
-RecoilButton.Position = UDim2.new(0.05, 0, 0.60, 0)
-RecoilButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-RecoilButton.Text = "No Recoil: OFF"
-RecoilButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-RecoilButton.TextSize = 14
-RecoilButton.Font = Enum.Font.SourceSansSemibold
-RecoilButton.Parent = MainFrame
+----------------------------------------------------
+-- منطق الـ No Recoil
+----------------------------------------------------
+local noRecoilEnabled = false
+local renderConnection = nil
 
-local BtnCorner2 = Instance.new("UICorner")
-BtnCorner2.CornerRadius = UDim.new(0, 6)
-BtnCorner2.Parent = RecoilButton
-
--- 2. ESP Logic
-local function updateESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local highlight = player.Character:FindFirstChild("ProGUI_Highlight")
-            if ESP_Enabled then
-                if not highlight then
-                    highlight = Instance.new("Highlight")
-                    highlight.Name = "ProGUI_Highlight"
-                    highlight.Adornee = player.Character
-                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.FillTransparency = 0.5
-                    highlight.AlwaysOnTop = true
-                    highlight.Parent = player.Character
+local function applyNoRecoil()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool then
+        -- البحث عن قيم الارتداد داخل السلاح وتصفرها
+        for _, obj in ipairs(tool:GetDescendants()) do
+            if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                local name = obj.Name:lower()
+                if name:find("recoil") or name:find("kick") or name:find("spread") then
+                    obj.Value = 0
                 end
-            else
-                if highlight then highlight:Destroy() end
             end
         end
     end
 end
 
-ESPButton.MouseButton1Click:Connect(function()
-    ESP_Enabled = not ESP_Enabled
-    if ESP_Enabled then
-        ESPButton.Text = "ESP (Highlight): ON"
-        ESPButton.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
+-- تفعيل / تعطيل الخاصية عند الضغط على الزر
+ToggleButton.MouseButton1Click:Connect(function()
+    noRecoilEnabled = not noRecoilEnabled
+    
+    if noRecoilEnabled then
+        ToggleButton.Text = "No Recoil: ON"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 180, 50) -- أخضر (مفعل)
+        
+        -- تشغيل الحلقة لتصفير القيم بشكل مستمر
+        renderConnection = RunService.RenderStepped:Connect(function()
+            if noRecoilEnabled then
+                applyNoRecoil()
+            end
+        end)
     else
-        ESPButton.Text = "ESP (Highlight): OFF"
-        ESPButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-    end
-    updateESP()
-end)
-
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        if ESP_Enabled then updateESP() end
-    end)
-end)
-
--- 3. No Recoil Logic Loop
-RecoilButton.MouseButton1Click:Connect(function()
-    NoRecoil_Enabled = not NoRecoil_Enabled
-    if NoRecoil_Enabled then
-        RecoilButton.Text = "No Recoil: ON"
-        RecoilButton.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
-    else
-        RecoilButton.Text = "No Recoil: OFF"
-        RecoilButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if not NoRecoil_Enabled then return end
-    local char = LocalPlayer.Character
-    if char then
-        local tool = char:FindFirstChildOfClass("Tool")
-        if tool then
-            pcall(function()
-                for _, v in ipairs(tool:GetDescendants()) do
-                    if v:IsA("NumberValue") or v:IsA("IntValue") then
-                        local name = v.Name:lower()
-                        if name:find("recoil") or name:find("shake") or name:find("spread") then
-                            v.Value = 0
-                        end
-                    end
-                end
-            end)
+        ToggleButton.Text = "No Recoil: OFF"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50) -- أحمر (معطل)
+        
+        if renderConnection then
+            renderConnection:Disconnect()
+            renderConnection = nil
         end
     end
 end)
