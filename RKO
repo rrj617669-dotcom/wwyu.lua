@@ -11,13 +11,9 @@ getgenv().NoRecoilEnabled = true
 getgenv().ESPEnabled = false
 getgenv().SpeedEnabled = false
 getgenv().MuteShotsEnabled = true
+getgenv().FastReloadEnabled = true
 getgenv().PlayerSpeed = 32
-getgenv().FireDelay = 0.05
-
--- Prone Animation Variables
-local PRONE_ANIM_ID = "rbxassetid://313762630"
-local isProne = false
-local currentProneTrack = nil
+getgenv().FireDelay = 0.01 -- سرعة فائقة للإطلاق بدون كولداون
 
 -- Reset Camera & Character
 pcall(function()
@@ -55,7 +51,7 @@ end
 -- Main Frame (Mobile Optimized)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 420)
+MainFrame.Size = UDim2.new(0, 280, 0, 380)
 MainFrame.Position = UDim2.new(0.5, -140, 0.25, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
@@ -67,7 +63,7 @@ local FrameCorner = Instance.new("UICorner")
 FrameCorner.CornerRadius = UDim.new(0, 10)
 FrameCorner.Parent = MainFrame
 
--- Mobile Toggle Button (زر إخفاء/إظهار الواجهة للجوال)
+-- Mobile Toggle Button
 local ToggleGuiBtn = Instance.new("TextButton")
 ToggleGuiBtn.Name = "ToggleGuiBtn"
 ToggleGuiBtn.Size = UDim2.new(0, 50, 0, 50)
@@ -92,7 +88,7 @@ end)
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 45)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "⚡ Mobile Combat Hub v6"
+Header.Text = "⚡ Fast-Fire Combat Hub v7"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
 Header.TextSize = 15
 Header.Font = Enum.Font.SourceSansBold
@@ -123,12 +119,11 @@ end
 
 -- Buttons Creation
 local RecoilBtn = CreateButton("🎯 No Recoil: ON", 55, Color3.fromRGB(40, 200, 40))
-local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 110, Color3.fromRGB(200, 40, 40))
-local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 165, Color3.fromRGB(200, 40, 40))
-local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 220, Color3.fromRGB(200, 40, 40))
-local MuteBtn = CreateButton("🔇 Mute My Gun: ON", 275, Color3.fromRGB(40, 200, 40))
-local ProneBtn = CreateButton("🛏️ Toggle Lay Down", 330, Color3.fromRGB(130, 50, 200))
-local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 380, Color3.fromRGB(0, 120, 215))
+local AutoFireBtn = CreateButton("🔴 Rapid Fire: OFF", 110, Color3.fromRGB(200, 40, 40))
+local FastReloadBtn = CreateButton("⚡ Instant Reload: ON", 165, Color3.fromRGB(40, 200, 40))
+local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 220, Color3.fromRGB(200, 40, 40))
+local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 275, Color3.fromRGB(200, 40, 40))
+local MuteBtn = CreateButton("🔇 Mute My Gun: ON", 330, Color3.fromRGB(40, 200, 40))
 
 ---------------------------------------------------------
 -- LOGIC & SYSTEMS
@@ -191,35 +186,22 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- 3. PRONE ANIMATION SYSTEM
-local function ToggleProne()
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-
-    if not isProne then
-        local anim = Instance.new("Animation")
-        anim.AnimationId = PRONE_ANIM_ID
-        
-        currentProneTrack = humanoid:LoadAnimation(anim)
-        currentProneTrack.Priority = Enum.AnimationPriority.Action
-        currentProneTrack:Play()
-        
-        isProne = true
-        ProneBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
-    else
-        if currentProneTrack then
-            currentProneTrack:Stop()
-            currentProneTrack = nil
-        end
-        isProne = false
-        ProneBtn.BackgroundColor3 = Color3.fromRGB(130, 50, 200)
+-- 3. INSTANT RELOAD & FAST FIRE
+local function InstantReload(tool)
+    local ammoRemote = tool:FindFirstChild("Ammo") or tool:FindFirstChild("Reload") or tool:FindFirstChild("OnReload")
+    if ammoRemote then
+        pcall(function()
+            if ammoRemote:IsA("RemoteEvent") then
+                ammoRemote:FireServer()
+            elseif ammoRemote:IsA("RemoteFunction") then
+                ammoRemote:InvokeServer()
+            elseif ammoRemote:IsA("BindableEvent") then
+                ammoRemote:Fire()
+            end
+        end)
     end
 end
 
--- 4. WEAPON ACTIVATION & RELOAD
 local function ActivateTool()
     local character = LocalPlayer.Character
     if not character then return end
@@ -233,6 +215,10 @@ local function ActivateTool()
 
     if getgenv().NoRecoilEnabled then
         ClearWeaponRecoil(tool)
+    end
+
+    if getgenv().FastReloadEnabled then
+        InstantReload(tool)
     end
 
     pcall(function()
@@ -251,26 +237,7 @@ local function ActivateTool()
     end
 end
 
-local function ReloadTool()
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local tool = character:FindFirstChildOfClass("Tool")
-    if not tool then return end
-
-    local ammoRemote = tool:FindFirstChild("Ammo")
-    if ammoRemote then
-        pcall(function()
-            if ammoRemote:IsA("RemoteEvent") then
-                ammoRemote:FireServer()
-            elseif ammoRemote:IsA("RemoteFunction") then
-                ammoRemote:InvokeServer()
-            end
-        end)
-    end
-end
-
--- 5. PLAYER ESP
+-- 4. PLAYER ESP
 local function CreateNameTag(character, player)
     local head = character:FindFirstChild("Head")
     if not head then return end
@@ -326,7 +293,7 @@ local function UpdateESP()
     end
 end
 
--- 6. SPEED BOOST
+-- 5. SPEED BOOST
 RunService.Stepped:Connect(function()
     if getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().PlayerSpeed
@@ -344,8 +311,14 @@ end)
 
 AutoFireBtn.MouseButton1Click:Connect(function()
     getgenv().AutoFireEnabled = not getgenv().AutoFireEnabled
-    AutoFireBtn.Text = getgenv().AutoFireEnabled and "🟢 Auto Fire: ON" or "🔴 Auto Fire: OFF"
+    AutoFireBtn.Text = getgenv().AutoFireEnabled and "🟢 Rapid Fire: ON" or "🔴 Rapid Fire: OFF"
     AutoFireBtn.BackgroundColor3 = getgenv().AutoFireEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+end)
+
+FastReloadBtn.MouseButton1Click:Connect(function()
+    getgenv().FastReloadEnabled = not getgenv().FastReloadEnabled
+    FastReloadBtn.Text = getgenv().FastReloadEnabled and "⚡ Instant Reload: ON" or "⭕ Instant Reload: OFF"
+    FastReloadBtn.BackgroundColor3 = getgenv().FastReloadEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
 end)
 
 ESPBtn.MouseButton1Click:Connect(function()
@@ -368,14 +341,6 @@ MuteBtn.MouseButton1Click:Connect(function()
     getgenv().MuteShotsEnabled = not getgenv().MuteShotsEnabled
     MuteBtn.Text = getgenv().MuteShotsEnabled and "🔇 Mute My Gun: ON" or "🔊 Mute My Gun: OFF"
     MuteBtn.BackgroundColor3 = getgenv().MuteShotsEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-end)
-
-ProneBtn.MouseButton1Click:Connect(function()
-    ToggleProne()
-end)
-
-ReloadBtn.MouseButton1Click:Connect(function()
-    ReloadTool()
 end)
 
 -- Background Loops
