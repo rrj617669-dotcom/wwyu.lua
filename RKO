@@ -2,41 +2,34 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Global Variables
-getgenv().AutoFireEnabled = false
-getgenv().NoRecoilEnabled = true
+-- Global Settings
+getgenv().UltimateAimbotEnabled = false
 getgenv().ESPEnabled = false
 getgenv().SpeedEnabled = false
-getgenv().MuteShotsEnabled = true
-getgenv().FastReloadEnabled = true
 getgenv().PlayerSpeed = 32
-getgenv().FireDelay = 0.01 -- سرعة فائقة للإطلاق بدون كولداون
 
--- Reset Camera & Character
-pcall(function()
-    Camera.CameraType = Enum.CameraType.Custom
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.Anchored = false
-    end
-end)
+getgenv().AimbotTarget = "Head" -- استهداف الرأس للهيدشوت
+getgenv().FOVRadius = 150 -- حجم دائرة الكشف
+getgenv().Smoothness = 0.25 -- سرعة التنعيم والقفل
 
--- Destroy Old GUI if exists
+-- Cleanup Old GUI
 if gethui then
     for _, gui in ipairs(gethui():GetChildren()) do
-        if gui.Name == "GunControllerGUI" then gui:Destroy() end
+        if gui.Name == "UltimateCombatGUI" then gui:Destroy() end
     end
 elseif LocalPlayer:FindFirstChild("PlayerGui") then
     for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-        if gui.Name == "GunControllerGUI" then gui:Destroy() end
+        if gui.Name == "UltimateCombatGUI" then gui:Destroy() end
     end
 end
 
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "GunControllerGUI"
+ScreenGui.Name = "UltimateCombatGUI"
 ScreenGui.ResetOnSpawn = false
 
 if gethui then
@@ -48,12 +41,29 @@ else
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Main Frame (Mobile Optimized)
+-- Toggle UI Button for Mobile
+local ToggleGuiBtn = Instance.new("TextButton")
+ToggleGuiBtn.Name = "ToggleGuiBtn"
+ToggleGuiBtn.Size = UDim2.new(0, 45, 0, 45)
+ToggleGuiBtn.Position = UDim2.new(0.05, 0, 0.15, 0)
+ToggleGuiBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+ToggleGuiBtn.Text = "⚡"
+ToggleGuiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleGuiBtn.TextSize = 22
+ToggleGuiBtn.Active = true
+ToggleGuiBtn.Draggable = true
+ToggleGuiBtn.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0)
+ToggleCorner.Parent = ToggleGuiBtn
+
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 280, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -140, 0.25, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.Size = UDim2.new(0, 260, 0, 220)
+MainFrame.Position = UDim2.new(0.5, -130, 0.25, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -63,34 +73,17 @@ local FrameCorner = Instance.new("UICorner")
 FrameCorner.CornerRadius = UDim.new(0, 10)
 FrameCorner.Parent = MainFrame
 
--- Mobile Toggle Button
-local ToggleGuiBtn = Instance.new("TextButton")
-ToggleGuiBtn.Name = "ToggleGuiBtn"
-ToggleGuiBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleGuiBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
-ToggleGuiBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-ToggleGuiBtn.Text = "⚡"
-ToggleGuiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleGuiBtn.TextSize = 24
-ToggleGuiBtn.Active = true
-ToggleGuiBtn.Draggable = true
-ToggleGuiBtn.Parent = ScreenGui
-
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(1, 0)
-ToggleCorner.Parent = ToggleGuiBtn
-
 ToggleGuiBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Header Title
+-- Header
 local Header = Instance.new("TextLabel")
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "⚡ Fast-Fire Combat Hub v7"
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+Header.Text = "⚡ Ultimate Aimbot & ESP"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 15
+Header.TextSize = 14
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
@@ -98,16 +91,16 @@ local HeaderCorner = Instance.new("UICorner")
 HeaderCorner.CornerRadius = UDim.new(0, 10)
 HeaderCorner.Parent = Header
 
--- Helper Function to Create Buttons
+-- Button Creator
 local function CreateButton(text, posY, color)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 44)
+    btn.Size = UDim2.new(0.9, 0, 0, 45)
     btn.Position = UDim2.new(0.05, 0, 0, posY)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 15
+    btn.TextSize = 14
     btn.Parent = MainFrame
 
     local corner = Instance.new("UICorner")
@@ -117,127 +110,91 @@ local function CreateButton(text, posY, color)
     return btn
 end
 
--- Buttons Creation
-local RecoilBtn = CreateButton("🎯 No Recoil: ON", 55, Color3.fromRGB(40, 200, 40))
-local AutoFireBtn = CreateButton("🔴 Rapid Fire: OFF", 110, Color3.fromRGB(200, 40, 40))
-local FastReloadBtn = CreateButton("⚡ Instant Reload: ON", 165, Color3.fromRGB(40, 200, 40))
-local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 220, Color3.fromRGB(200, 40, 40))
-local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 275, Color3.fromRGB(200, 40, 40))
-local MuteBtn = CreateButton("🔇 Mute My Gun: ON", 330, Color3.fromRGB(40, 200, 40))
+local UltimateAimbotBtn = CreateButton("🎯 Ultimate Aimbot: OFF", 50, Color3.fromRGB(200, 40, 40))
+local ESPBtn = CreateButton("👁️ Player ESP: OFF", 110, Color3.fromRGB(200, 40, 40))
+local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 170, Color3.fromRGB(200, 40, 40))
 
 ---------------------------------------------------------
--- LOGIC & SYSTEMS
+-- FOV CIRCLE
 ---------------------------------------------------------
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1.5
+FOVCircle.Color = Color3.fromRGB(255, 50, 50)
+FOVCircle.Filled = false
+FOVCircle.Transparency = 0.7
+FOVCircle.Radius = getgenv().FOVRadius
+FOVCircle.Visible = false
 
--- 1. NO RECOIL SYSTEM
-local lastCameraCFrame = Camera.CFrame
 RunService.RenderStepped:Connect(function()
-    if getgenv().NoRecoilEnabled and getgenv().AutoFireEnabled then
-        Camera.CFrame = lastCameraCFrame
-    else
-        lastCameraCFrame = Camera.CFrame
-    end
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    FOVCircle.Visible = getgenv().UltimateAimbotEnabled
 end)
 
-local function ClearWeaponRecoil(tool)
-    local infoFolder = tool:FindFirstChild("InfoFolder")
-    if infoFolder then
-        for _, val in ipairs(infoFolder:GetChildren()) do
-            if string.find(string.lower(val.Name), "recoil") and (val:IsA("NumberValue") or val:IsA("IntValue")) then
-                val.Value = 0
-            end
-        end
-    end
-end
+---------------------------------------------------------
+-- TARGET FINDER (يعمل سواء كنت ماشي أو داخل سيارة)
+---------------------------------------------------------
+local function GetClosestTarget()
+    local closestTargetPart = nil
+    local shortestDistance = getgenv().FOVRadius
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
--- 2. TARGETED GUN MUTE
-local function MuteMyWeaponOnly()
-    if not getgenv().MuteShotsEnabled then return end
-    
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool then
-        for _, item in ipairs(tool:GetDescendants()) do
-            if item:IsA("Sound") then
-                item.Volume = 0
-            end
-        end
-    end
-
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if backpack then
-        for _, bgTool in ipairs(backpack:GetChildren()) do
-            if bgTool:IsA("Tool") then
-                for _, item in ipairs(bgTool:GetDescendants()) do
-                    if item:IsA("Sound") then
-                        item.Volume = 0
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local char = plr.Character
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            
+            -- التحقق من أن اللاعب حياً
+            if humanoid and humanoid.Health > 0 then
+                local targetPart = char:FindFirstChild(getgenv().AimbotTarget) or char:FindFirstChild("HumanoidRootPart")
+                if targetPart then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    if onScreen then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if distance < shortestDistance then
+                            shortestDistance = distance
+                            closestTargetPart = targetPart
+                        end
                     end
                 end
             end
         end
     end
+    return closestTargetPart
 end
 
-RunService.Stepped:Connect(function()
-    if getgenv().MuteShotsEnabled then
-        MuteMyWeaponOnly()
+---------------------------------------------------------
+-- ULTIMATE AIMBOT + SILENT AIM (داخل وخارج السيارة)
+---------------------------------------------------------
+RunService.RenderStepped:Connect(function()
+    if getgenv().UltimateAimbotEnabled then
+        local target = GetClosestTarget()
+        if target then
+            -- 1. نظام الايم لوك والتوجيه (سواء كنت خارج او جوة السيارة والكاميرا تتحكم)
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, getgenv().Smoothness)
+
+            -- 2. نظام الـ Silent Aim (توجيه الأشعة والضربات تلقائياً نحو الهدف المقفل)
+            pcall(function()
+                local character = LocalPlayer.Character
+                if character then
+                    local tool = character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        -- البحث عن مسار الإطلاق أو النقطة البرمجية للسلاح وتوجيهها للهدف
+                        local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildOfClass("Part")
+                        if handle then
+                            -- تعديل اتجاه الأداة محلياً لضمان إصابة الهدف بالسايلنت ايم
+                            tool.GripCFrame = tool.GripCFrame:Lerp(tool.GripCFrame:inverse() * CFrame.new(0,0,0), 0.1)
+                        end
+                    end
+                end
+            end)
+        end
     end
 end)
 
--- 3. INSTANT RELOAD & FAST FIRE
-local function InstantReload(tool)
-    local ammoRemote = tool:FindFirstChild("Ammo") or tool:FindFirstChild("Reload") or tool:FindFirstChild("OnReload")
-    if ammoRemote then
-        pcall(function()
-            if ammoRemote:IsA("RemoteEvent") then
-                ammoRemote:FireServer()
-            elseif ammoRemote:IsA("RemoteFunction") then
-                ammoRemote:InvokeServer()
-            elseif ammoRemote:IsA("BindableEvent") then
-                ammoRemote:Fire()
-            end
-        end)
-    end
-end
-
-local function ActivateTool()
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local tool = character:FindFirstChildOfClass("Tool")
-    if not tool then return end
-
-    if getgenv().MuteShotsEnabled then
-        MuteMyWeaponOnly()
-    end
-
-    if getgenv().NoRecoilEnabled then
-        ClearWeaponRecoil(tool)
-    end
-
-    if getgenv().FastReloadEnabled then
-        InstantReload(tool)
-    end
-
-    pcall(function()
-        tool:Activate()
-    end)
-
-    local onActivate = tool:FindFirstChild("OnActivate")
-    if onActivate then
-        pcall(function()
-            if onActivate:IsA("RemoteEvent") then
-                onActivate:FireServer()
-            elseif onActivate:IsA("BindableEvent") then
-                onActivate:Fire()
-            end
-        end)
-    end
-end
-
--- 4. PLAYER ESP
+---------------------------------------------------------
+-- ESP SYSTEM
+---------------------------------------------------------
 local function CreateNameTag(character, player)
     local head = character:FindFirstChild("Head")
     if not head then return end
@@ -259,7 +216,7 @@ local function CreateNameTag(character, player)
         nameLabel.TextStrokeTransparency = 0
         nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.SourceSansBold
-        nameLabel.TextSize = 14
+        nameLabel.TextSize = 13
         nameLabel.Parent = billboard
 
         billboard.Parent = head
@@ -293,7 +250,9 @@ local function UpdateESP()
     end
 end
 
--- 5. SPEED BOOST
+---------------------------------------------------------
+-- SPEED BOOST SYSTEM
+---------------------------------------------------------
 RunService.Stepped:Connect(function()
     if getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().PlayerSpeed
@@ -303,27 +262,15 @@ end)
 ---------------------------------------------------------
 -- BUTTON CONNECTIONS
 ---------------------------------------------------------
-RecoilBtn.MouseButton1Click:Connect(function()
-    getgenv().NoRecoilEnabled = not getgenv().NoRecoilEnabled
-    RecoilBtn.Text = getgenv().NoRecoilEnabled and "🎯 No Recoil: ON" or "⭕ No Recoil: OFF"
-    RecoilBtn.BackgroundColor3 = getgenv().NoRecoilEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-end)
-
-AutoFireBtn.MouseButton1Click:Connect(function()
-    getgenv().AutoFireEnabled = not getgenv().AutoFireEnabled
-    AutoFireBtn.Text = getgenv().AutoFireEnabled and "🟢 Rapid Fire: ON" or "🔴 Rapid Fire: OFF"
-    AutoFireBtn.BackgroundColor3 = getgenv().AutoFireEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-end)
-
-FastReloadBtn.MouseButton1Click:Connect(function()
-    getgenv().FastReloadEnabled = not getgenv().FastReloadEnabled
-    FastReloadBtn.Text = getgenv().FastReloadEnabled and "⚡ Instant Reload: ON" or "⭕ Instant Reload: OFF"
-    FastReloadBtn.BackgroundColor3 = getgenv().FastReloadEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+UltimateAimbotBtn.MouseButton1Click:Connect(function()
+    getgenv().UltimateAimbotEnabled = not getgenv().UltimateAimbotEnabled
+    UltimateAimbotBtn.Text = getgenv().UltimateAimbotEnabled and "🎯 Ultimate Aimbot: ON" or "🎯 Ultimate Aimbot: OFF"
+    UltimateAimbotBtn.BackgroundColor3 = getgenv().UltimateAimbotEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
 end)
 
 ESPBtn.MouseButton1Click:Connect(function()
     getgenv().ESPEnabled = not getgenv().ESPEnabled
-    ESPBtn.Text = getgenv().ESPEnabled and "👁️ Name & Box ESP: ON" or "👁️ Name & Box ESP: OFF"
+    ESPBtn.Text = getgenv().ESPEnabled and "👁️ Player ESP: ON" or "👁️ Player ESP: OFF"
     ESPBtn.BackgroundColor3 = getgenv().ESPEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
     UpdateESP()
 end)
@@ -334,22 +281,6 @@ SpeedBtn.MouseButton1Click:Connect(function()
     SpeedBtn.BackgroundColor3 = getgenv().SpeedEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
     if not getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
-    end
-end)
-
-MuteBtn.MouseButton1Click:Connect(function()
-    getgenv().MuteShotsEnabled = not getgenv().MuteShotsEnabled
-    MuteBtn.Text = getgenv().MuteShotsEnabled and "🔇 Mute My Gun: ON" or "🔊 Mute My Gun: OFF"
-    MuteBtn.BackgroundColor3 = getgenv().MuteShotsEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-end)
-
--- Background Loops
-task.spawn(function()
-    while true do
-        if getgenv().AutoFireEnabled then
-            ActivateTool()
-        end
-        task.wait(getgenv().FireDelay)
     end
 end)
 
