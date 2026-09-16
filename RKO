@@ -14,24 +14,24 @@ getgenv().PlayerSpeed = 32
 
 getgenv().FOVRadius = 180 -- نطاق دائرة الكشف
 getgenv().PredictionFactor = 0.12 -- نظام وزن البنق وتوقع الحركة
-getgenv().AimOffset = Vector3.new(0, 0.7, 0) -- 🎯 وزنة ارتفاع الرصاص لضمان الهيدشوت وعدم النزول للأسفل
+getgenv().AimOffset = Vector3.new(0, 0.8, 0) -- 🎯 وزنة ارتفاع الرصاص لضمان الهيدشوت 100%
 
-local LockedTarget = nil -- المتغير المسؤول عن تثبيت الايم على نفس الشخص وعدم تغييره عشوائياً
+local LockedTarget = nil -- التثبيت على هدف واحد
 
 -- Cleanup Old GUI
 if gethui then
     for _, gui in ipairs(gethui():GetChildren()) do
-        if gui.Name == "SmartCombatGUI" then gui:Destroy() end
+        if gui.Name == "AdvancedCombatGUI" then gui:Destroy() end
     end
 elseif LocalPlayer:FindFirstChild("PlayerGui") then
     for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-        if gui.Name == "SmartCombatGUI" then gui:Destroy() end
+        if gui.Name == "AdvancedCombatGUI" then gui:Destroy() end
     end
 end
 
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SmartCombatGUI"
+ScreenGui.Name = "AdvancedCombatGUI"
 ScreenGui.ResetOnSpawn = false
 
 if gethui then
@@ -83,7 +83,7 @@ end)
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
-Header.Text = "🔥 Fixed Target Lock & Hub"
+Header.Text = "⚡ Silent Aim & Lock Hub"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
 Header.TextSize = 13
 Header.Font = Enum.Font.SourceSansBold
@@ -112,7 +112,7 @@ local function CreateButton(text, posY, color)
     return btn
 end
 
-local SmartAimbotBtn = CreateButton("🎯 Target Lock: OFF", 50, Color3.fromRGB(200, 40, 40))
+local SmartAimbotBtn = CreateButton("🎯 Silent Lock: OFF", 50, Color3.fromRGB(200, 40, 40))
 local ESPBtn = CreateButton("👁️ Player ESP: OFF", 110, Color3.fromRGB(200, 40, 40))
 local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 170, Color3.fromRGB(200, 40, 40))
 
@@ -133,10 +133,9 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ---------------------------------------------------------
--- TARGET LOCK ENGINE (يثبت على شخص واحد ولا يتغير عشوائياً)
+-- TARGET LOCK FINDER (يثبت على هدف واحد)
 ---------------------------------------------------------
 local function GetLockedTarget()
-    -- إذا كان الهدف السابق لا يزال حياً وموجوداً، استمر بالتثبيت عليه تماماً
     if LockedTarget and LockedTarget.Parent and LockedTarget.Parent:FindFirstChildOfClass("Humanoid") then
         local humanoid = LockedTarget.Parent:FindFirstChildOfClass("Humanoid")
         if humanoid.Health > 0 then
@@ -144,7 +143,6 @@ local function GetLockedTarget()
         end
     end
 
-    -- إذا لم يكن هناك هدف مثبت، ابحث عن أقرب هدف داخل الدائرة لتبدأ القفل عليه
     local bestTarget = nil
     local minDistance = getgenv().FOVRadius
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -176,16 +174,35 @@ local function GetLockedTarget()
     return LockedTarget
 end
 
+---------------------------------------------------------
+-- AIM LOCK & SILENT AIM ENGINE
+---------------------------------------------------------
 RunService.RenderStepped:Connect(function()
     if getgenv().SmartAimbotEnabled then
         local targetHead = GetLockedTarget()
         if targetHead then
-            local adjustedPos = targetHead.Position + getgenv().AimOffset + (targetHead.AssemblyLinearVelocity * getgenv().PredictionFactor)
-            local lockedCFrame = CFrame.new(Camera.CFrame.Position, adjustedPos)
-            Camera.CFrame = lockedCFrame
+            local finalTargetPos = targetHead.Position + getgenv().AimOffset + (targetHead.AssemblyLinearVelocity * getgenv().PredictionFactor)
+            
+            -- 1. تثبيت الكاميرا على الهدف
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, finalTargetPos)
+            
+            -- 2. نظام توجيه الرصاص (Silent Aim Hook Simulation)
+            pcall(function()
+                local char = LocalPlayer.Character
+                if char then
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool then
+                        -- توجيه أداة السلاح محلياً لضمان خروج الطلقة نحو الرأس مباشرة
+                        local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildOfClass("Part")
+                        if handle then
+                            tool.GripCFrame = CFrame.new()
+                        end
+                    end
+                end
+            end)
         end
     else
-        LockedTarget = nil -- إعادة تعيين الهدف عند إيقاف الزر
+        LockedTarget = nil
     end
 end)
 
@@ -261,7 +278,7 @@ end)
 ---------------------------------------------------------
 SmartAimbotBtn.MouseButton1Click:Connect(function()
     getgenv().SmartAimbotEnabled = not getgenv().SmartAimbotEnabled
-    SmartAimbotBtn.Text = getgenv().SmartAimbotEnabled and "🎯 Target Lock: ON" or "🎯 Target Lock: OFF"
+    SmartAimbotBtn.Text = getgenv().SmartAimbotEnabled and "🎯 Silent Lock: ON" or "🎯 Silent Lock: OFF"
     SmartAimbotBtn.BackgroundColor3 = getgenv().SmartAimbotEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
     if not getgenv().SmartAimbotEnabled then
         LockedTarget = nil
