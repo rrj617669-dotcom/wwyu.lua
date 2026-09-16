@@ -7,29 +7,28 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Global Settings
-getgenv().UltimateAimbotEnabled = false
+getgenv().SmartAimbotEnabled = false
 getgenv().ESPEnabled = false
 getgenv().SpeedEnabled = false
 getgenv().PlayerSpeed = 32
 
-getgenv().AimbotTarget = "Head" -- استهداف الرأس للهيدشوت
-getgenv().FOVRadius = 150 -- حجم دائرة الكشف
-getgenv().Smoothness = 0.25 -- سرعة التنعيم والقفل
+getgenv().FOVRadius = 180 -- نطاق دائرة الكشف
+getgenv().PredictionFactor = 0.12 -- نظام وزن البنق وتوقع الحركة
 
 -- Cleanup Old GUI
 if gethui then
     for _, gui in ipairs(gethui():GetChildren()) do
-        if gui.Name == "UltimateCombatGUI" then gui:Destroy() end
+        if gui.Name == "SmartCombatGUI" then gui:Destroy() end
     end
 elseif LocalPlayer:FindFirstChild("PlayerGui") then
     for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-        if gui.Name == "UltimateCombatGUI" then gui:Destroy() end
+        if gui.Name == "SmartCombatGUI" then gui:Destroy() end
     end
 end
 
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UltimateCombatGUI"
+ScreenGui.Name = "SmartCombatGUI"
 ScreenGui.ResetOnSpawn = false
 
 if gethui then
@@ -47,7 +46,7 @@ ToggleGuiBtn.Name = "ToggleGuiBtn"
 ToggleGuiBtn.Size = UDim2.new(0, 45, 0, 45)
 ToggleGuiBtn.Position = UDim2.new(0.05, 0, 0.15, 0)
 ToggleGuiBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-ToggleGuiBtn.Text = "⚡"
+ToggleGuiBtn.Text = "🎯"
 ToggleGuiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleGuiBtn.TextSize = 22
 ToggleGuiBtn.Active = true
@@ -81,9 +80,9 @@ end)
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
-Header.Text = "⚡ Ultimate Aimbot & ESP"
+Header.Text = "🔥 Smart Lock & Headshot Hub"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 14
+Header.TextSize = 13
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
@@ -110,32 +109,32 @@ local function CreateButton(text, posY, color)
     return btn
 end
 
-local UltimateAimbotBtn = CreateButton("🎯 Ultimate Aimbot: OFF", 50, Color3.fromRGB(200, 40, 40))
+local SmartAimbotBtn = CreateButton("🎯 Smart Lock: OFF", 50, Color3.fromRGB(200, 40, 40))
 local ESPBtn = CreateButton("👁️ Player ESP: OFF", 110, Color3.fromRGB(200, 40, 40))
 local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 170, Color3.fromRGB(200, 40, 40))
 
 ---------------------------------------------------------
--- FOV CIRCLE
+-- FOV CIRCLE VISUALIZER
 ---------------------------------------------------------
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
-FOVCircle.Color = Color3.fromRGB(255, 50, 50)
+FOVCircle.Color = Color3.fromRGB(0, 255, 128)
 FOVCircle.Filled = false
-FOVCircle.Transparency = 0.7
+FOVCircle.Transparency = 0.6
 FOVCircle.Radius = getgenv().FOVRadius
 FOVCircle.Visible = false
 
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    FOVCircle.Visible = getgenv().UltimateAimbotEnabled
+    FOVCircle.Visible = getgenv().SmartAimbotEnabled
 end)
 
 ---------------------------------------------------------
--- TARGET FINDER (يعمل سواء كنت ماشي أو داخل سيارة)
+-- SMART TARGET FINDER (أقرب رأس داخل النطاق)
 ---------------------------------------------------------
-local function GetClosestTarget()
-    local closestTargetPart = nil
-    local shortestDistance = getgenv().FOVRadius
+local function GetBestTarget()
+    local bestTarget = nil
+    local minDistance = getgenv().FOVRadius
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
     for _, plr in ipairs(Players:GetPlayers()) do
@@ -143,51 +142,37 @@ local function GetClosestTarget()
             local char = plr.Character
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             
-            -- التحقق من أن اللاعب حياً
             if humanoid and humanoid.Health > 0 then
-                local targetPart = char:FindFirstChild(getgenv().AimbotTarget) or char:FindFirstChild("HumanoidRootPart")
-                if targetPart then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                local head = char:FindFirstChild("Head")
+                if head then
+                    -- نظام تعويض البنق والحركة (Prediction)
+                    local predictedPos = head.Position + (head.AssemblyLinearVelocity * getgenv().PredictionFactor)
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
+                    
                     if onScreen then
-                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        if distance < shortestDistance then
-                            shortestDistance = distance
-                            closestTargetPart = targetPart
+                        local magnitude = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if magnitude < minDistance then
+                            minDistance = magnitude
+                            bestTarget = head
                         end
                     end
                 end
             end
         end
     end
-    return closestTargetPart
+    return bestTarget
 end
 
 ---------------------------------------------------------
--- ULTIMATE AIMBOT + SILENT AIM (داخل وخارج السيارة)
+-- AIM LOCK ENGINE (التصاق تام وفوري بالرأس)
 ---------------------------------------------------------
 RunService.RenderStepped:Connect(function()
-    if getgenv().UltimateAimbotEnabled then
-        local target = GetClosestTarget()
-        if target then
-            -- 1. نظام الايم لوك والتوجيه (سواء كنت خارج او جوة السيارة والكاميرا تتحكم)
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, getgenv().Smoothness)
-
-            -- 2. نظام الـ Silent Aim (توجيه الأشعة والضربات تلقائياً نحو الهدف المقفل)
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local tool = character:FindFirstChildOfClass("Tool")
-                    if tool then
-                        -- البحث عن مسار الإطلاق أو النقطة البرمجية للسلاح وتوجيهها للهدف
-                        local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildOfClass("Part")
-                        if handle then
-                            -- تعديل اتجاه الأداة محلياً لضمان إصابة الهدف بالسايلنت ايم
-                            tool.GripCFrame = tool.GripCFrame:Lerp(tool.GripCFrame:inverse() * CFrame.new(0,0,0), 0.1)
-                        end
-                    end
-                end
-            end)
+    if getgenv().SmartAimbotEnabled then
+        local targetHead = GetBestTarget()
+        if targetHead then
+            -- القفل الفوري والموزون على الرأس مباشرة بدون أي تأخير مزعج
+            local lockedCFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position + (targetHead.AssemblyLinearVelocity * getgenv().PredictionFactor))
+            Camera.CFrame = lockedCFrame
         end
     end
 end)
@@ -262,13 +247,13 @@ end)
 ---------------------------------------------------------
 -- BUTTON CONNECTIONS
 ---------------------------------------------------------
-UltimateAimbotBtn.MouseButton1Click:Connect(function()
-    getgenv().UltimateAimbotEnabled = not getgenv().UltimateAimbotEnabled
-    UltimateAimbotBtn.Text = getgenv().UltimateAimbotEnabled and "🎯 Ultimate Aimbot: ON" or "🎯 Ultimate Aimbot: OFF"
-    UltimateAimbotBtn.BackgroundColor3 = getgenv().UltimateAimbotEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+SmartAimbotBtn.MouseButton1Click:Connect(function()
+    getgenv().SmartAimbotEnabled = not getgenv().SmartAimbotEnabled
+    SmartAimbotBtn.Text = getgenv().SmartAimbotEnabled and "🎯 Smart Lock: ON" or "🎯 Smart Lock: OFF"
+    SmartAimbotBtn.BackgroundColor3 = getgenv().SmartAimbotEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
 end)
 
-ESPBtn.MouseButton1Click:Connect(function()
+ESPBtn.MouseButton1Click:Connect(function`
     getgenv().ESPEnabled = not getgenv().ESPEnabled
     ESPBtn.Text = getgenv().ESPEnabled and "👁️ Player ESP: ON" or "👁️ Player ESP: OFF"
     ESPBtn.BackgroundColor3 = getgenv().ESPEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
