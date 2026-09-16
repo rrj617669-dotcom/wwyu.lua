@@ -1,116 +1,58 @@
--- Roblox Universal Native Auto Clicker (GitHub Engine)
-local VirtualUser = game:GetService("VirtualUser")
-local UserInputService = game:GetService("UserInputService")
+-- Services
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Cleanup
-if PlayerGui:FindFirstChild("NativeAutoClicker") then
-    PlayerGui.NativeAutoClicker:Destroy()
-end
-
--- ScreenGui Setup
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NativeAutoClicker"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 9999
-ScreenGui.Parent = PlayerGui
-
--- Main Panel
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 130)
-Frame.Position = UDim2.new(0.05, 0, 0.3, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.Active = true
-Frame.Draggable = true
-Frame.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = Frame
-
--- Title
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "Universal Clicker"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 16
-Title.Parent = Frame
-
--- Target Frame (Transparent Area)
-local TargetBtn = Instance.new("TextButton")
-TargetBtn.Size = UDim2.new(0, 45, 0, 45)
-TargetBtn.Position = UDim2.new(0.5, -22, 0.22, 0)
-TargetBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 50)
-TargetBtn.BackgroundTransparency = 0.5
-TargetBtn.Text = "🎯"
-TargetBtn.TextSize = 20
-TargetBtn.Active = true
-TargetBtn.Draggable = true
-TargetBtn.Parent = ScreenGui
-
-local TargetCorner = Instance.new("UICorner")
-TargetCorner.CornerRadius = UDim.new(1, 0)
-TargetCorner.Parent = TargetBtn
-
--- Toggle Button
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0.85, 0, 0, 35)
-ToggleBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
-ToggleBtn.Text = "START"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.TextSize = 16
-ToggleBtn.Parent = Frame
-
-local BtnCorner = Instance.new("UICorner")
-BtnCorner.CornerRadius = UDim.new(0, 6)
-BtnCorner.Parent = ToggleBtn
-
--- Logic Engine
-local clicking = false
-
-local function performNativeClick()
-    local targetPos = TargetBtn.AbsolutePosition + (TargetBtn.AbsoluteSize / 2)
-    local vecPos = Vector2.new(targetPos.X, targetPos.Y + 36)
-
-    -- Temporary disable target button interaction so click passes through to the game below
-    TargetBtn.Active = false
+-- 1. Highlight ESP Implementation
+local function applyHighlight(character)
+    if not character:FindFirstChild("HumanoidRootPart") then return end
+    if character:FindFirstChild("CustomESP_Highlight") then return end
     
-    -- Method A: Core VirtualUser Click (Bypasses Roblox UI Blockers)
-    pcall(function()
-        VirtualUser:ClickButton1(vecPos)
-    end)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "CustomESP_Highlight"
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(255, 0, 0) -- لون التعبئة (أحمر)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- لون الإطار (أبيض)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.AlwaysOnTop = true
+    highlight.Parent = character
+end
 
-    -- Method B: Executor Native mouse1click (If supported by your executor)
-    if mouse1click then
+-- Apply ESP to existing and new players
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        if player.Character then applyHighlight(player.Character) end
+        player.CharacterAdded:Connect(applyHighlight)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(applyHighlight)
+    end
+end)
+
+-- 2. No Recoil & Camera Shake Fix Implementation
+RunService.RenderStepped:Connect(function()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    -- التأكد من السلاح الحالي (Tool)
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool then
+        -- البحث عن أي متغيرات تخص الـ Recoil أو الـ Spread داخل السلاح أو الـ Modules التابعة له وتصفيرها
+        -- (هذه الطريقة تتعامل مع غالبية سكربتات الأسلحة الشائعة في روبلوكس)
         pcall(function()
-            mouse1click(vecPos.X, vecPos.Y)
+            -- بعض السكربتات تخزن الإعدادات في مجلد Config أو Settings داخل الأداة
+            local settingsModule = tool:FindFirstChild("Settings") or tool:FindFirstChild("Config") or tool:FindFirstChild("Values")
+            if settingsModule then
+                -- محاولة تعديل خصائص الارتداد إذا كانت معرفة بأسماء شائعة
+                if settingsModule:FindFirstChild("Recoil") then settingsModule.Recoil.Value = 0 end
+                if settingsModule:FindFirstChild("CameraShake") then settingsModule.CameraShake.Value = 0 end
+                if settingsModule:FindFirstChild("Spread") then settingsModule.Spread.Value = 0 end
+            end
         end)
-    end
-
-    TargetBtn.Active = true
-end
-
-local function loop()
-    while clicking do
-        performNativeClick()
-        task.wait(0.005) -- Fast response loop
-    end
-end
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    clicking = not clicking
-    if clicking then
-        ToggleBtn.Text = "STOP"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
-        task.spawn(loop)
-    else
-        ToggleBtn.Text = "START"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
     end
 end)
