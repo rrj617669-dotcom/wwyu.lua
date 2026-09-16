@@ -10,14 +10,9 @@ getgenv().AutoFireEnabled = false
 getgenv().NoRecoilEnabled = true
 getgenv().ESPEnabled = false
 getgenv().SpeedEnabled = false
-getgenv().FreecamEnabled = false
+getgenv().MuteShotsEnabled = true
 getgenv().PlayerSpeed = 32
 getgenv().FireDelay = 0.05
-
--- Freecam Storage
-local originalCamType = Camera.CameraType
-local originalCamCFrame = Camera.CFrame
-local freecamCFrame = Camera.CFrame
 
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
@@ -36,8 +31,8 @@ end
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -150, 0.35, -200)
+MainFrame.Size = UDim2.new(0, 300, 0, 360)
+MainFrame.Position = UDim2.new(0.5, -150, 0.35, -180)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -52,7 +47,7 @@ FrameCorner.Parent = MainFrame
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "⚡ Ultimate Weapon & Freecam Hub"
+Header.Text = "⚡ Ultimate Weapon Control Hub"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
 Header.TextSize = 14
 Header.Font = Enum.Font.SourceSansBold
@@ -86,9 +81,8 @@ local RecoilBtn = CreateButton("🎯 No Recoil: ON", 50, Color3.fromRGB(40, 200,
 local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 100, Color3.fromRGB(200, 40, 40))
 local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 150, Color3.fromRGB(200, 40, 40))
 local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 200, Color3.fromRGB(200, 40, 40))
-local FreecamBtn = CreateButton("🎥 Freecam: OFF", 250, Color3.fromRGB(200, 40, 40))
-local TeleportBtn = CreateButton("📍 Teleport to Cam Position", 300, Color3.fromRGB(150, 50, 200))
-local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 350, Color3.fromRGB(0, 120, 215))
+local MuteBtn = CreateButton("🔇 Mute Gunshots: ON", 250, Color3.fromRGB(40, 200, 40))
+local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 300, Color3.fromRGB(0, 120, 215))
 
 ---------------------------------------------------------
 -- LOGIC & SYSTEMS
@@ -97,9 +91,9 @@ local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 350, Color3.fromRGB(0
 -- 1. NO RECOIL SYSTEM
 local lastCameraCFrame = Camera.CFrame
 RunService.RenderStepped:Connect(function()
-    if getgenv().NoRecoilEnabled and getgenv().AutoFireEnabled and not getgenv().FreecamEnabled then
+    if getgenv().NoRecoilEnabled and getgenv().AutoFireEnabled then
         Camera.CFrame = lastCameraCFrame
-    elseif not getgenv().FreecamEnabled then
+    else
         lastCameraCFrame = Camera.CFrame
     end
 end)
@@ -115,13 +109,28 @@ local function ClearWeaponRecoil(tool)
     end
 end
 
--- 2. WEAPON ACTIVATION & RELOAD
+-- 2. MUTE SHOTS SYSTEM (كتم صوت السلاح)
+local function HandleGunSounds(tool)
+    if not getgenv().MuteShotsEnabled then return end
+    for _, item in ipairs(tool:GetDescendants()) do
+        if item:IsA("Sound") then
+            item.Volume = 0
+            item.SoundId = ""
+        end
+    end
+end
+
+-- 3. WEAPON ACTIVATION & RELOAD
 local function ActivateTool()
     local character = LocalPlayer.Character
     if not character then return end
     
     local tool = character:FindFirstChildOfClass("Tool")
     if not tool then return end
+
+    if getgenv().MuteShotsEnabled then
+        HandleGunSounds(tool)
+    end
 
     if getgenv().NoRecoilEnabled then
         ClearWeaponRecoil(tool)
@@ -162,7 +171,7 @@ local function ReloadTool()
     end
 end
 
--- 3. ENHANCED PLAYER ESP WITH NAMES
+-- 4. ENHANCED PLAYER ESP WITH NAMES
 local function CreateNameTag(character, player)
     local head = character:FindFirstChild("Head")
     if not head then return end
@@ -218,55 +227,12 @@ local function UpdateESP()
     end
 end
 
--- 4. SPEED BOOST
+-- 5. SPEED BOOST
 RunService.Stepped:Connect(function()
     if getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().PlayerSpeed
     end
 end)
-
--- 5. FREECAM & TELEPORT SYSTEM
-RunService.RenderStepped:Connect(function()
-    if getgenv().FreecamEnabled then
-        Camera.CameraType = Enum.CameraType.Scriptable
-        Camera.CFrame = freecamCFrame
-    end
-end)
-
-local function ToggleFreecam()
-    getgenv().FreecamEnabled = not getgenv().FreecamEnabled
-    if getgenv().FreecamEnabled then
-        originalCamType = Camera.CameraType
-        freecamCFrame = Camera.CFrame
-        Camera.CameraType = Enum.CameraType.Scriptable
-        
-        -- Anchor character while in freecam so it doesn't fall or get hit easily
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.Anchored = true
-        end
-    else
-        Camera.CameraType = Enum.CameraType.Custom
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.Anchored = false
-        end
-    end
-end
-
-local function TeleportToCamera()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local targetCFrame = Camera.CFrame
-        LocalPlayer.Character.HumanoidRootPart.Anchored = false
-        LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
-        
-        -- Reset freecam mode back to normal player view after teleporting
-        if getgenv().FreecamEnabled then
-            getgenv().FreecamEnabled = false
-            FreecamBtn.Text = "🎥 Freecam: OFF"
-            FreecamBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-            Camera.CameraType = Enum.CameraType.Custom
-        end
-    end
-end
 
 ---------------------------------------------------------
 -- BUTTON CONNECTIONS
@@ -299,14 +265,10 @@ SpeedBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-FreecamBtn.MouseButton1Click:Connect(function()
-    ToggleFreecam()
-    FreecamBtn.Text = getgenv().FreecamEnabled and "🎥 Freecam: ON" or "🎥 Freecam: OFF"
-    FreecamBtn.BackgroundColor3 = getgenv().FreecamEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-end)
-
-TeleportBtn.MouseButton1Click:Connect(function()
-    TeleportToCamera()
+MuteBtn.MouseButton1Click:Connect(function()
+    getgenv().MuteShotsEnabled = not getgenv().MuteShotsEnabled
+    MuteBtn.Text = getgenv().MuteShotsEnabled and "🔇 Mute Gunshots: ON" or "🔊 Mute Gunshots: OFF"
+    MuteBtn.BackgroundColor3 = getgenv().MuteShotsEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
 end)
 
 ReloadBtn.MouseButton1Click:Connect(function()
