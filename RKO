@@ -14,6 +14,30 @@ getgenv().MuteShotsEnabled = true
 getgenv().PlayerSpeed = 32
 getgenv().FireDelay = 0.05
 
+-- Prone Animation Variables
+local PRONE_ANIM_ID = "rbxassetid://313762630"
+local isProne = false
+local currentProneTrack = nil
+
+-- Reset Camera & Character
+pcall(function()
+    Camera.CameraType = Enum.CameraType.Custom
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.Anchored = false
+    end
+end)
+
+-- Destroy Old GUI if exists
+if gethui then
+    for _, gui in ipairs(gethui():GetChildren()) do
+        if gui.Name == "GunControllerGUI" then gui:Destroy() end
+    end
+elseif LocalPlayer:FindFirstChild("PlayerGui") then
+    for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+        if gui.Name == "GunControllerGUI" then gui:Destroy() end
+    end
+end
+
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "GunControllerGUI"
@@ -28,11 +52,11 @@ else
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Main Frame
+-- Main Frame (Mobile Optimized)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 360)
-MainFrame.Position = UDim2.new(0.5, -150, 0.35, -180)
+MainFrame.Size = UDim2.new(0, 280, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -140, 0.25, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -40,49 +64,71 @@ MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 8)
+FrameCorner.CornerRadius = UDim.new(0, 10)
 FrameCorner.Parent = MainFrame
+
+-- Mobile Toggle Button (زر إخفاء/إظهار الواجهة للجوال)
+local ToggleGuiBtn = Instance.new("TextButton")
+ToggleGuiBtn.Name = "ToggleGuiBtn"
+ToggleGuiBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleGuiBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
+ToggleGuiBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+ToggleGuiBtn.Text = "⚡"
+ToggleGuiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleGuiBtn.TextSize = 24
+ToggleGuiBtn.Active = true
+ToggleGuiBtn.Draggable = true
+ToggleGuiBtn.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0)
+ToggleCorner.Parent = ToggleGuiBtn
+
+ToggleGuiBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
 
 -- Header Title
 local Header = Instance.new("TextLabel")
-Header.Size = UDim2.new(1, 0, 0, 40)
+Header.Size = UDim2.new(1, 0, 0, 45)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "⚡ Ultimate Weapon Control Hub"
+Header.Text = "⚡ Mobile Combat Hub v6"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 14
+Header.TextSize = 15
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
 local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 8)
+HeaderCorner.CornerRadius = UDim.new(0, 10)
 HeaderCorner.Parent = Header
 
 -- Helper Function to Create Buttons
 local function CreateButton(text, posY, color)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 42)
+    btn.Size = UDim2.new(0.9, 0, 0, 44)
     btn.Position = UDim2.new(0.05, 0, 0, posY)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 14
+    btn.TextSize = 15
     btn.Parent = MainFrame
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
+    corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
 
     return btn
 end
 
 -- Buttons Creation
-local RecoilBtn = CreateButton("🎯 No Recoil وائل: ON", 50, Color3.fromRGB(40, 200, 40))
-local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 100, Color3.fromRGB(200, 40, 40))
-local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 150, Color3.fromRGB(200, 40, 40))
-local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 200, Color3.fromRGB(200, 40, 40))
-local MuteBtn = CreateButton("🔇 Mute Gunshots: ON", 250, Color3.fromRGB(40, 200, 40))
-local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 300, Color3.fromRGB(0, 120, 215))
+local RecoilBtn = CreateButton("🎯 No Recoil: ON", 55, Color3.fromRGB(40, 200, 40))
+local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 110, Color3.fromRGB(200, 40, 40))
+local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 165, Color3.fromRGB(200, 40, 40))
+local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 220, Color3.fromRGB(200, 40, 40))
+local MuteBtn = CreateButton("🔇 Mute My Gun: ON", 275, Color3.fromRGB(40, 200, 40))
+local ProneBtn = CreateButton("🛏️ Toggle Lay Down", 330, Color3.fromRGB(130, 50, 200))
+local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 380, Color3.fromRGB(0, 120, 215))
 
 ---------------------------------------------------------
 -- LOGIC & SYSTEMS
@@ -109,18 +155,71 @@ local function ClearWeaponRecoil(tool)
     end
 end
 
--- 2. MUTE SHOTS SYSTEM (كتم صوت السلاح)
-local function HandleGunSounds(tool)
+-- 2. TARGETED GUN MUTE
+local function MuteMyWeaponOnly()
     if not getgenv().MuteShotsEnabled then return end
-    for _, item in ipairs(tool:GetDescendants()) do
-        if item:IsA("Sound") then
-            item.Volume = 0
-            item.SoundId = ""
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool then
+        for _, item in ipairs(tool:GetDescendants()) do
+            if item:IsA("Sound") then
+                item.Volume = 0
+            end
+        end
+    end
+
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, bgTool in ipairs(backpack:GetChildren()) do
+            if bgTool:IsA("Tool") then
+                for _, item in ipairs(bgTool:GetDescendants()) do
+                    if item:IsA("Sound") then
+                        item.Volume = 0
+                    end
+                end
+            end
         end
     end
 end
 
--- 3. WEAPON ACTIVATION & RELOAD
+RunService.Stepped:Connect(function()
+    if getgenv().MuteShotsEnabled then
+        MuteMyWeaponOnly()
+    end
+end)
+
+-- 3. PRONE ANIMATION SYSTEM
+local function ToggleProne()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    if not isProne then
+        local anim = Instance.new("Animation")
+        anim.AnimationId = PRONE_ANIM_ID
+        
+        currentProneTrack = humanoid:LoadAnimation(anim)
+        currentProneTrack.Priority = Enum.AnimationPriority.Action
+        currentProneTrack:Play()
+        
+        isProne = true
+        ProneBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
+    else
+        if currentProneTrack then
+            currentProneTrack:Stop()
+            currentProneTrack = nil
+        end
+        isProne = false
+        ProneBtn.BackgroundColor3 = Color3.fromRGB(130, 50, 200)
+    end
+end
+
+-- 4. WEAPON ACTIVATION & RELOAD
 local function ActivateTool()
     local character = LocalPlayer.Character
     if not character then return end
@@ -129,7 +228,7 @@ local function ActivateTool()
     if not tool then return end
 
     if getgenv().MuteShotsEnabled then
-        HandleGunSounds(tool)
+        MuteMyWeaponOnly()
     end
 
     if getgenv().NoRecoilEnabled then
@@ -171,7 +270,7 @@ local function ReloadTool()
     end
 end
 
--- 4. ENHANCED PLAYER ESP WITH NAMES
+-- 5. PLAYER ESP
 local function CreateNameTag(character, player)
     local head = character:FindFirstChild("Head")
     if not head then return end
@@ -227,7 +326,7 @@ local function UpdateESP()
     end
 end
 
--- 5. SPEED BOOST
+-- 6. SPEED BOOST
 RunService.Stepped:Connect(function()
     if getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().PlayerSpeed
@@ -267,8 +366,12 @@ end)
 
 MuteBtn.MouseButton1Click:Connect(function()
     getgenv().MuteShotsEnabled = not getgenv().MuteShotsEnabled
-    MuteBtn.Text = getgenv().MuteShotsEnabled and "🔇 Mute Gunshots: ON" or "🔊 Mute Gunshots: OFF"
+    MuteBtn.Text = getgenv().MuteShotsEnabled and "🔇 Mute My Gun: ON" or "🔊 Mute My Gun: OFF"
     MuteBtn.BackgroundColor3 = getgenv().MuteShotsEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+end)
+
+ProneBtn.MouseButton1Click:Connect(function()
+    ToggleProne()
 end)
 
 ReloadBtn.MouseButton1Click:Connect(function()
