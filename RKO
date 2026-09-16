@@ -8,6 +8,9 @@ local Camera = Workspace.CurrentCamera
 -- Global Variables
 getgenv().AutoFireEnabled = false
 getgenv().NoRecoilEnabled = true
+getgenv().ESPEnabled = false
+getgenv().SpeedEnabled = false
+getgenv().PlayerSpeed = 32
 getgenv().FireDelay = 0.05
 
 -- ScreenGui Setup
@@ -27,8 +30,8 @@ end
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 230)
-MainFrame.Position = UDim2.new(0.5, -150, 0.4, -115)
+MainFrame.Size = UDim2.new(0, 300, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -150, 0.35, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -43,9 +46,9 @@ FrameCorner.Parent = MainFrame
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "🔫 No Recoil & Weapon Control"
+Header.Text = "⚡ Ultimate Weapon & Name ESP Hub"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 15
+Header.TextSize = 14
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
@@ -53,57 +56,38 @@ local HeaderCorner = Instance.new("UICorner")
 HeaderCorner.CornerRadius = UDim.new(0, 8)
 HeaderCorner.Parent = Header
 
--- 1. NO RECOIL TOGGLE BUTTON
-local RecoilBtn = Instance.new("TextButton")
-RecoilBtn.Size = UDim2.new(0.9, 0, 0, 45)
-RecoilBtn.Position = UDim2.new(0.05, 0, 0, 50)
-RecoilBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
-RecoilBtn.Text = "🎯 No Recoil: ON"
-RecoilBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RecoilBtn.Font = Enum.Font.SourceSansBold
-RecoilBtn.TextSize = 15
-RecoilBtn.Parent = MainFrame
+-- Helper Function to Create Buttons
+local function CreateButton(text, posY, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 42)
+    btn.Position = UDim2.new(0.05, 0, 0, posY)
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    btn.Parent = MainFrame
 
-local RecoilCorner = Instance.new("UICorner")
-RecoilCorner.CornerRadius = UDim.new(0, 6)
-RecoilCorner.Parent = RecoilBtn
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
 
--- 2. AUTO FIRE TOGGLE BUTTON
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0.9, 0, 0, 45)
-ToggleBtn.Position = UDim2.new(0.05, 0, 0, 105)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-ToggleBtn.Text = "🔴 Auto Fire: OFF"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.TextSize = 15
-ToggleBtn.Parent = MainFrame
+    return btn
+end
 
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 6)
-ToggleCorner.Parent = ToggleBtn
-
--- 3. SINGLE SHOT BUTTON
-local SingleShotBtn = Instance.new("TextButton")
-SingleShotBtn.Size = UDim2.new(0.9, 0, 0, 45)
-SingleShotBtn.Position = UDim2.new(0.05, 0, 0, 160)
-SingleShotBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-SingleShotBtn.Text = "💥 Trigger Weapon Once"
-SingleShotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SingleShotBtn.Font = Enum.Font.SourceSansBold
-SingleShotBtn.TextSize = 14
-SingleShotBtn.Parent = MainFrame
-
-local SingleCorner = Instance.new("UICorner")
-SingleCorner.CornerRadius = UDim.new(0, 6)
-SingleCorner.Parent = SingleShotBtn
+-- Buttons Creation
+local RecoilBtn = CreateButton("🎯 No Recoil: ON", 50, Color3.fromRGB(40, 200, 40))
+local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 100, Color3.fromRGB(200, 40, 40))
+local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 150, Color3.fromRGB(200, 40, 40))
+local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 200, Color3.fromRGB(200, 40, 40))
+local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 250, Color3.fromRGB(0, 120, 215))
 
 ---------------------------------------------------------
--- NO RECOIL & WEAPON LOGIC
+-- LOGIC & SYSTEMS
 ---------------------------------------------------------
+
+-- 1. NO RECOIL SYSTEM
 local lastCameraCFrame = Camera.CFrame
-
--- تثبيت اتجاه الكاميرا لمنع الاهتزاز عند الإطلاق
 RunService.RenderStepped:Connect(function()
     if getgenv().NoRecoilEnabled and getgenv().AutoFireEnabled then
         Camera.CFrame = lastCameraCFrame
@@ -112,7 +96,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- تصفير قيم الارتداد داخل السلاح إن وجدت
 local function ClearWeaponRecoil(tool)
     local infoFolder = tool:FindFirstChild("InfoFolder")
     if infoFolder then
@@ -124,6 +107,7 @@ local function ClearWeaponRecoil(tool)
     end
 end
 
+-- 2. WEAPON ACTIVATION & RELOAD
 local function ActivateTool()
     local character = LocalPlayer.Character
     if not character then return end
@@ -135,7 +119,6 @@ local function ActivateTool()
         ClearWeaponRecoil(tool)
     end
 
-    -- تفعيل السلاح
     pcall(function()
         tool:Activate()
     end)
@@ -152,39 +135,141 @@ local function ActivateTool()
     end
 end
 
--- Controls Connections
+local function ReloadTool()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then return end
+
+    local ammoRemote = tool:FindFirstChild("Ammo")
+    if ammoRemote then
+        pcall(function()
+            if ammoRemote:IsA("RemoteEvent") then
+                ammoRemote:FireServer()
+            elseif ammoRemote:IsA("RemoteFunction") then
+                ammoRemote:InvokeServer()
+            end
+        end)
+    end
+end
+
+-- 3. ENHANCED PLAYER ESP WITH NAMES (BillboardGui + Highlight)
+local function CreateNameTag(character, player)
+    local head = character:FindFirstChild("Head")
+    if not head then return end
+
+    local billboard = head:FindFirstChild("ESPNameTag")
+    if not billboard then
+        billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESPNameTag"
+        billboard.Adornee = head
+        billboard.Size = UDim2.new(0, 150, 0, 40)
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboard.AlwaysOnTop = true
+
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+        nameLabel.TextStrokeTransparency = 0
+        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.TextSize = 14
+        nameLabel.Parent = billboard
+
+        billboard.Parent = head
+    end
+end
+
+local function UpdateESP()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local char = plr.Character
+            local highlight = char:FindFirstChild("ESPHighlight")
+            local head = char:FindFirstChild("Head")
+            local nameTag = head and head:FindFirstChild("ESPNameTag")
+
+            if getgenv().ESPEnabled then
+                -- Highlight setup
+                if not highlight then
+                    highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.FillColor = Color3.fromRGB(255, 0, 50)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = char
+                end
+                
+                -- NameTag setup
+                CreateNameTag(char, plr)
+            else
+                if highlight then highlight:Destroy() end
+                if nameTag then nameTag:Destroy() end
+            end
+        end
+    end
+end
+
+-- 4. SPEED BOOST
+RunService.Stepped:Connect(function()
+    if getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().PlayerSpeed
+    end
+end)
+
+---------------------------------------------------------
+-- BUTTON CONNECTIONS
+---------------------------------------------------------
 RecoilBtn.MouseButton1Click:Connect(function()
     getgenv().NoRecoilEnabled = not getgenv().NoRecoilEnabled
-    if getgenv().NoRecoilEnabled then
-        RecoilBtn.Text = "🎯 No Recoil: ON"
-        RecoilBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
-    else
-        RecoilBtn.Text = "⭕ No Recoil: OFF"
-        RecoilBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-    end
+    RecoilBtn.Text = getgenv().NoRecoilEnabled and "🎯 No Recoil: ON" or "⭕ No Recoil: OFF"
+    RecoilBtn.BackgroundColor3 = getgenv().NoRecoilEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
 end)
 
-ToggleBtn.MouseButton1Click:Connect(function()
+AutoFireBtn.MouseButton1Click:Connect(function()
     getgenv().AutoFireEnabled = not getgenv().AutoFireEnabled
-    if getgenv().AutoFireEnabled then
-        ToggleBtn.Text = "🟢 Auto Fire: ON"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
-    else
-        ToggleBtn.Text = "🔴 Auto Fire: OFF"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+    AutoFireBtn.Text = getgenv().AutoFireEnabled and "🟢 Auto Fire: ON" or "🔴 Auto Fire: OFF"
+    AutoFireBtn.BackgroundColor3 = getgenv().AutoFireEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+end)
+
+ESPBtn.MouseButton1Click:Connect(function()
+    getgenv().ESPEnabled = not getgenv().ESPEnabled
+    ESPBtn.Text = getgenv().ESPEnabled and "👁️ Name & Box ESP: ON" or "👁️ Name & Box ESP: OFF"
+    ESPBtn.BackgroundColor3 = getgenv().ESPEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+    UpdateESP()
+end)
+
+SpeedBtn.MouseButton1Click:Connect(function()
+    getgenv().SpeedEnabled = not getgenv().SpeedEnabled
+    SpeedBtn.Text = getgenv().SpeedEnabled and "⚡ Speed Boost: ON" or "⚡ Speed Boost: OFF"
+    SpeedBtn.BackgroundColor3 = getgenv().SpeedEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+    if not getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
     end
 end)
 
-SingleShotBtn.MouseButton1Click:Connect(function()
-    ActivateTool()
+ReloadBtn.MouseButton1Click:Connect(function()
+    ReloadTool()
 end)
 
--- Main Auto Fire Loop
+-- Background Loops
 task.spawn(function()
     while true do
         if getgenv().AutoFireEnabled then
             ActivateTool()
         end
         task.wait(getgenv().FireDelay)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        if getgenv().ESPEnabled then
+            UpdateESP()
+        end
+        task.wait(1.5)
     end
 end)
