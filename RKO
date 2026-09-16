@@ -1,10 +1,13 @@
 -- Services
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
 -- Global Variables
 getgenv().AutoFireEnabled = false
+getgenv().NoRecoilEnabled = true
 getgenv().FireDelay = 0.05
 
 -- ScreenGui Setup
@@ -24,8 +27,8 @@ end
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 180)
-MainFrame.Position = UDim2.new(0.5, -150, 0.4, -90)
+MainFrame.Size = UDim2.new(0, 300, 0, 230)
+MainFrame.Position = UDim2.new(0.5, -150, 0.4, -115)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -40,7 +43,7 @@ FrameCorner.Parent = MainFrame
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "🔫 Weapon Auto-Trigger"
+Header.Text = "🔫 No Recoil & Weapon Control"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
 Header.TextSize = 15
 Header.Font = Enum.Font.SourceSansBold
@@ -50,10 +53,25 @@ local HeaderCorner = Instance.new("UICorner")
 HeaderCorner.CornerRadius = UDim.new(0, 8)
 HeaderCorner.Parent = Header
 
--- Auto Fire Toggle Button
+-- 1. NO RECOIL TOGGLE BUTTON
+local RecoilBtn = Instance.new("TextButton")
+RecoilBtn.Size = UDim2.new(0.9, 0, 0, 45)
+RecoilBtn.Position = UDim2.new(0.05, 0, 0, 50)
+RecoilBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
+RecoilBtn.Text = "🎯 No Recoil: ON"
+RecoilBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RecoilBtn.Font = Enum.Font.SourceSansBold
+RecoilBtn.TextSize = 15
+RecoilBtn.Parent = MainFrame
+
+local RecoilCorner = Instance.new("UICorner")
+RecoilCorner.CornerRadius = UDim.new(0, 6)
+RecoilCorner.Parent = RecoilBtn
+
+-- 2. AUTO FIRE TOGGLE BUTTON
 local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0.9, 0, 0, 50)
-ToggleBtn.Position = UDim2.new(0.05, 0, 0, 55)
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 45)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0, 105)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
 ToggleBtn.Text = "🔴 Auto Fire: OFF"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -65,10 +83,10 @@ local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(0, 6)
 ToggleCorner.Parent = ToggleBtn
 
--- Instant Shot Button
+-- 3. SINGLE SHOT BUTTON
 local SingleShotBtn = Instance.new("TextButton")
 SingleShotBtn.Size = UDim2.new(0.9, 0, 0, 45)
-SingleShotBtn.Position = UDim2.new(0.05, 0, 0, 115)
+SingleShotBtn.Position = UDim2.new(0.05, 0, 0, 160)
 SingleShotBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
 SingleShotBtn.Text = "💥 Trigger Weapon Once"
 SingleShotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -81,8 +99,31 @@ SingleCorner.CornerRadius = UDim.new(0, 6)
 SingleCorner.Parent = SingleShotBtn
 
 ---------------------------------------------------------
--- WEAPON TRIGGER LOGIC
+-- NO RECOIL & WEAPON LOGIC
 ---------------------------------------------------------
+local lastCameraCFrame = Camera.CFrame
+
+-- تثبيت اتجاه الكاميرا لمنع الاهتزاز عند الإطلاق
+RunService.RenderStepped:Connect(function()
+    if getgenv().NoRecoilEnabled and getgenv().AutoFireEnabled then
+        Camera.CFrame = lastCameraCFrame
+    else
+        lastCameraCFrame = Camera.CFrame
+    end
+end)
+
+-- تصفير قيم الارتداد داخل السلاح إن وجدت
+local function ClearWeaponRecoil(tool)
+    local infoFolder = tool:FindFirstChild("InfoFolder")
+    if infoFolder then
+        for _, val in ipairs(infoFolder:GetChildren()) do
+            if string.find(string.lower(val.Name), "recoil") and (val:IsA("NumberValue") or val:IsA("IntValue")) then
+                val.Value = 0
+            end
+        end
+    end
+end
+
 local function ActivateTool()
     local character = LocalPlayer.Character
     if not character then return end
@@ -90,12 +131,15 @@ local function ActivateTool()
     local tool = character:FindFirstChildOfClass("Tool")
     if not tool then return end
 
-    -- 1. المحاولة عبر تفعيل السلاح المباشر (Tool:Activate)
+    if getgenv().NoRecoilEnabled then
+        ClearWeaponRecoil(tool)
+    end
+
+    -- تفعيل السلاح
     pcall(function()
         tool:Activate()
     end)
 
-    -- 2. المحاولة عبر الأسطر المكتشفة داخل السلاح (OnActivate)
     local onActivate = tool:FindFirstChild("OnActivate")
     if onActivate then
         pcall(function()
@@ -108,7 +152,18 @@ local function ActivateTool()
     end
 end
 
--- Toggle Control
+-- Controls Connections
+RecoilBtn.MouseButton1Click:Connect(function()
+    getgenv().NoRecoilEnabled = not getgenv().NoRecoilEnabled
+    if getgenv().NoRecoilEnabled then
+        RecoilBtn.Text = "🎯 No Recoil: ON"
+        RecoilBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
+    else
+        RecoilBtn.Text = "⭕ No Recoil: OFF"
+        RecoilBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+    end
+end)
+
 ToggleBtn.MouseButton1Click:Connect(function()
     getgenv().AutoFireEnabled = not getgenv().AutoFireEnabled
     if getgenv().AutoFireEnabled then
@@ -120,12 +175,11 @@ ToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Single Shot Control
 SingleShotBtn.MouseButton1Click:Connect(function()
     ActivateTool()
 end)
 
--- Main Loop
+-- Main Auto Fire Loop
 task.spawn(function()
     while true do
         if getgenv().AutoFireEnabled then
