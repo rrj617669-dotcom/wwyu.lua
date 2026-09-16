@@ -2,7 +2,6 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
@@ -11,21 +10,18 @@ getgenv().AutoFireEnabled = false
 getgenv().NoRecoilEnabled = true
 getgenv().ESPEnabled = false
 getgenv().SpeedEnabled = false
+getgenv().FreecamEnabled = false
 getgenv().PlayerSpeed = 32
 getgenv().FireDelay = 0.05
 
--- إشعار الترحيب وحقوق وائل عند بدء التشغيل
-pcall(function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "حقوق وائل",
-        Text = "تم تشغيل سكربت وائل بنجاح!",
-        Duration = 5
-    })
-end)
+-- Freecam Storage
+local originalCamType = Camera.CameraType
+local originalCamCFrame = Camera.CFrame
+local freecamCFrame = Camera.CFrame
 
 -- ScreenGui Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "WaelGunControllerGUI"
+ScreenGui.Name = "GunControllerGUI"
 ScreenGui.ResetOnSpawn = false
 
 if gethui then
@@ -40,8 +36,8 @@ end
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 350) -- تم تكبير الارتفاع لاستيعاب الحقوق
-MainFrame.Position = UDim2.new(0.5, -150, 0.35, -175)
+MainFrame.Size = UDim2.new(0, 300, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -150, 0.35, -200)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -56,9 +52,9 @@ FrameCorner.Parent = MainFrame
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
-Header.Text = "⚡ سكربت وائل | Wael Script"
+Header.Text = "⚡ Ultimate Weapon & Freecam Hub"
 Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 15
+Header.TextSize = 14
 Header.Font = Enum.Font.SourceSansBold
 Header.Parent = MainFrame
 
@@ -90,18 +86,9 @@ local RecoilBtn = CreateButton("🎯 No Recoil: ON", 50, Color3.fromRGB(40, 200,
 local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 100, Color3.fromRGB(200, 40, 40))
 local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 150, Color3.fromRGB(200, 40, 40))
 local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 200, Color3.fromRGB(200, 40, 40))
-local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 250, Color3.fromRGB(0, 120, 215))
-
--- حقوق وائل بخط صغير في أسفل القائمة
-local CreditsLabel = Instance.new("TextLabel")
-CreditsLabel.Size = UDim2.new(1, 0, 0, 25)
-CreditsLabel.Position = UDim2.new(0, 0, 0, 315)
-CreditsLabel.BackgroundTransparency = 1
-CreditsLabel.Text = "حقوق وائل | Developed by Wael"
-CreditsLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
-CreditsLabel.TextSize = 11
-CreditsLabel.Font = Enum.Font.SourceSansItalic
-CreditsLabel.Parent = MainFrame
+local FreecamBtn = CreateButton("🎥 Freecam: OFF", 250, Color3.fromRGB(200, 40, 40))
+local TeleportBtn = CreateButton("📍 Teleport to Cam Position", 300, Color3.fromRGB(150, 50, 200))
+local ReloadBtn = CreateButton("🔄 Force Reload Weapon", 350, Color3.fromRGB(0, 120, 215))
 
 ---------------------------------------------------------
 -- LOGIC & SYSTEMS
@@ -110,9 +97,9 @@ CreditsLabel.Parent = MainFrame
 -- 1. NO RECOIL SYSTEM
 local lastCameraCFrame = Camera.CFrame
 RunService.RenderStepped:Connect(function()
-    if getgenv().NoRecoilEnabled and getgenv().AutoFireEnabled then
+    if getgenv().NoRecoilEnabled and getgenv().AutoFireEnabled and not getgenv().FreecamEnabled then
         Camera.CFrame = lastCameraCFrame
-    else
+    elseif not getgenv().FreecamEnabled then
         lastCameraCFrame = Camera.CFrame
     end
 end)
@@ -238,6 +225,49 @@ RunService.Stepped:Connect(function()
     end
 end)
 
+-- 5. FREECAM & TELEPORT SYSTEM
+RunService.RenderStepped:Connect(function()
+    if getgenv().FreecamEnabled then
+        Camera.CameraType = Enum.CameraType.Scriptable
+        Camera.CFrame = freecamCFrame
+    end
+end)
+
+local function ToggleFreecam()
+    getgenv().FreecamEnabled = not getgenv().FreecamEnabled
+    if getgenv().FreecamEnabled then
+        originalCamType = Camera.CameraType
+        freecamCFrame = Camera.CFrame
+        Camera.CameraType = Enum.CameraType.Scriptable
+        
+        -- Anchor character while in freecam so it doesn't fall or get hit easily
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.Anchored = true
+        end
+    else
+        Camera.CameraType = Enum.CameraType.Custom
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.Anchored = false
+        end
+    end
+end
+
+local function TeleportToCamera()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetCFrame = Camera.CFrame
+        LocalPlayer.Character.HumanoidRootPart.Anchored = false
+        LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+        
+        -- Reset freecam mode back to normal player view after teleporting
+        if getgenv().FreecamEnabled then
+            getgenv().FreecamEnabled = false
+            FreecamBtn.Text = "🎥 Freecam: OFF"
+            FreecamBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+            Camera.CameraType = Enum.CameraType.Custom
+        end
+    end
+end
+
 ---------------------------------------------------------
 -- BUTTON CONNECTIONS
 ---------------------------------------------------------
@@ -267,6 +297,16 @@ SpeedBtn.MouseButton1Click:Connect(function()
     if not getgenv().SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
     end
+end)
+
+FreecamBtn.MouseButton1Click:Connect(function()
+    ToggleFreecam()
+    FreecamBtn.Text = getgenv().FreecamEnabled and "🎥 Freecam: ON" or "🎥 Freecam: OFF"
+    FreecamBtn.BackgroundColor3 = getgenv().FreecamEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+end)
+
+TeleportBtn.MouseButton1Click:Connect(function()
+    TeleportToCamera()
 end)
 
 ReloadBtn.MouseButton1Click:Connect(function()
