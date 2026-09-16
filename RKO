@@ -77,7 +77,7 @@ local function CreateButton(text, posY, color)
 end
 
 -- Buttons Creation
-local RecoilBtn = CreateButton("🎯 No Recoil: ON", 50, Color3.fromRGB(40, 200, 40))
+local RecoilBtn = CreateButton("🎯 No Recoil وائل: ON", 50, Color3.fromRGB(40, 200, 40))
 local AutoFireBtn = CreateButton("🔴 Auto Fire: OFF", 100, Color3.fromRGB(200, 40, 40))
 local ESPBtn = CreateButton("👁️ Name & Box ESP: OFF", 150, Color3.fromRGB(200, 40, 40))
 local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 200, Color3.fromRGB(200, 40, 40))
