@@ -1,269 +1,160 @@
--- Services
+-- استدعاء مكتبة الواجهة Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- إعداد نافذة الواجهة الأساسية
+local Window = Rayfield:CreateWindow({
+   Name = "Head Triggerbot | Hub",
+   LoadingTitle = "جاري تحميل السكربت...",
+   LoadingSubtitle = "بواسطة Assistant",
+   ConfigurationSaving = {
+      Enabled = false,
+   },
+   KeySystem = false, -- بدون مفتاح
+})
+
+-- إنشاء علامة تبويب (Tab) رئيسية
+local Tab = Window:CreateTab("التحكم الرئيسي", 4483362458)
+
+-- متغيرات التحكم والـ Settings
+local Settings = {
+    Enabled = false,
+    MaxDistance = 150,
+    MinDelay = 0.015,
+    MaxDelay = 0.045,
+    CheckTeam = true
+}
+
+-- الخدمات وبيئة العمل
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Global Settings
-getgenv().AimSettings = {
-    Enabled = false,
-    ESPEnabled = false,
-    SpeedEnabled = false,
-    PlayerSpeed = 32,
-    TargetPart = "Head",
-    Prediction = 0.12,
-    OffsetY = Vector3.new(0, 0.6, 0) -- 🎯 وزنة ارتفاع الرصاص لضمان الهيدشوت وعدم النزول تحت
-}
-
-local LockedTarget = nil
-
--- Cleanup Old GUI
-if gethui then
-    for _, gui in ipairs(gethui():GetChildren()) do
-        if gui.Name == "UltimateGUIHub" then gui:Destroy() end
-    end
-elseif LocalPlayer:FindFirstChild("PlayerGui") then
-    for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-        if gui.Name == "UltimateGUIHub" then gui:Destroy() end
-    end
-end
-
--- ScreenGui Setup
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UltimateGUIHub"
-ScreenGui.ResetOnSpawn = false
-
-if gethui then
-    ScreenGui.Parent = gethui()
-elseif syn and syn.protect_gui then
-    syn.protect_gui(ScreenGui)
-    ScreenGui.Parent = CoreGui
-else
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
-
--- Toggle UI Floating Button (لإخفاء وإظهار القائمة)
-local ToggleGuiBtn = Instance.new("TextButton")
-ToggleGuiBtn.Name = "ToggleGuiBtn"
-ToggleGuiBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleGuiBtn.Position = UDim2.new(0.05, 0, 0.15, 0)
-ToggleGuiBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-ToggleGuiBtn.Text = "⚡"
-ToggleGuiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleGuiBtn.TextSize = 24
-ToggleGuiBtn.Active = true
-ToggleGuiBtn.Draggable = true
-ToggleGuiBtn.Parent = ScreenGui
-
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(1, 0)
-ToggleCorner.Parent = ToggleGuiBtn
-
--- Main Frame (القائمة الرئيسية)
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 260, 0, 240)
-MainFrame.Position = UDim2.new(0.5, -130, 0.25, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
-
-local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 12)
-FrameCorner.Parent = MainFrame
-
-ToggleGuiBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
-
--- Header (عنوان القائمة)
-local Header = Instance.new("TextLabel")
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
-Header.Text = "🔥 Ultimate Aim & Hitfix Hub"
-Header.TextColor3 = Color3.fromRGB(255, 255, 255)
-Header.TextSize = 13
-Header.Font = Enum.Font.SourceSansBold
-Header.Parent = MainFrame
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 12)
-HeaderCorner.Parent = Header
-
--- Button Creator Function (لصنع الأزرار باحترافية)
-local function CreateButton(text, posY, color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 45)
-    btn.Position = UDim2.new(0.05, 0, 0, posY)
-    btn.BackgroundColor3 = color
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 14
-    btn.Parent = MainFrame
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = btn
-
-    return btn
-end
-
-local AimBtn = CreateButton("🎯 Aimbot Lock: OFF", 55, Color3.fromRGB(200, 40, 40))
-local ESPBtn = CreateButton("👁️ Player ESP: OFF", 115, Color3.fromRGB(200, 40, 40))
-local SpeedBtn = CreateButton("⚡ Speed Boost: OFF", 175, Color3.fromRGB(200, 40, 40))
-
----------------------------------------------------------
--- TARGET LOCK & HITFIX ENGINE
----------------------------------------------------------
-local function GetClosestTarget()
-    if LockedTarget and LockedTarget.Parent and LockedTarget.Parent:FindFirstChildOfClass("Humanoid") then
-        if LockedTarget.Parent.Humanoid.Health > 0 then
-            return LockedTarget
+-- دالة التحقق من الهدف
+local function isValidTarget(targetPart)
+    local character = targetPart.Parent
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local enemyPlayer = Players:GetPlayerFromCharacter(character)
+    
+    if humanoid and humanoid.Health > 0 and enemyPlayer ~= LocalPlayer then
+        if Settings.CheckTeam and enemyPlayer.Team == LocalPlayer.Team then
+            return false
         end
+        return true
     end
-
-    local closestPart = nil
-    local shortestDist = 200 -- نطاق الكشف (FOV Radius)
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            local char = plr.Character
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local part = char:FindFirstChild(getgenv().AimSettings.TargetPart)
-                if part then
-                    local targetWorldPos = part.Position + getgenv().AimSettings.OffsetY + (part.AssemblyLinearVelocity * getgenv().AimSettings.Prediction)
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetWorldPos)
-                    
-                    if onScreen then
-                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                        if dist < shortestDist then
-                            shortestDist = dist
-                            closestPart = part
-                        end
-                    end
-                end
-            end
-        end
-    end
-    LockedTarget = closestPart
-    return LockedTarget
+    return false
 end
 
--- حلقة التثبيت المانعة لانحراف الرصاص
-RunService.RenderStepped:Connect(function()
-    if getgenv().AimSettings.Enabled then
-        local targetPart = GetClosestTarget()
-        if targetPart then
-            local finalPos = targetPart.Position + getgenv().AimSettings.OffsetY + (targetPart.AssemblyLinearVelocity * getgenv().AimSettings.Prediction)
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, finalPos)
-        end
-    else
-        LockedTarget = nil
-    end
-end)
-
----------------------------------------------------------
--- ESP SYSTEM
----------------------------------------------------------
-local function CreateNameTag(character, player)
-    local head = character:FindFirstChild("Head")
-    if not head then return end
-    local billboard = head:FindFirstChild("ESPNameTag")
-    if not billboard then
-        billboard = Instance.new("BillboardGui")
-        billboard.Name = "ESPNameTag"
-        billboard.Adornee = head
-        billboard.Size = UDim2.new(0, 150, 0, 40)
-        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-        billboard.AlwaysOnTop = true
-
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, 0, 1, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = player.DisplayName
-        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-        nameLabel.TextStrokeTransparency = 0
-        nameLabel.Font = Enum.Font.SourceSansBold
-        nameLabel.TextSize = 13
-        nameLabel.Parent = billboard
-
-        billboard.Parent = head
-    end
-end
-
-local function UpdateESP()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            local char = plr.Character
-            local highlight = char:FindFirstChild("ESPHighlight")
-            local head = char:FindFirstChild("Head")
-            local nameTag = head and head:FindFirstChild("ESPNameTag")
-
-            if getgenv().AimSettings.ESPEnabled then
-                if not highlight then
-                    highlight = Instance.new("Highlight")
-                    highlight.Name = "ESPHighlight"
-                    highlight.FillColor = Color3.fromRGB(255, 0, 50)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.FillTransparency = 0.5
-                    highlight.Parent = char
-                end
-                CreateNameTag(char, plr)
+-- دالة إطلاق النار الذكي
+local function triggerShoot()
+    local humanDelay = math.random(Settings.MinDelay * 1000, Settings.MaxDelay * 1000) / 1000
+    task.wait(humanDelay)
+    
+    local character = LocalPlayer.Character
+    if character then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            local onActivateEvent = tool:FindFirstChild("OnActivate")
+            if onActivateEvent and onActivateEvent:IsA("RemoteEvent") then
+                onActivateEvent:FireServer()
             else
-                if highlight then highlight:Destroy() end
-                if nameTag then nameTag:Destroy() end
+                tool:Activate()
             end
         end
     end
 end
 
----------------------------------------------------------
--- SPEED BOOST SYSTEM
----------------------------------------------------------
-RunService.Stepped:Connect(function()
-    if getgenv().AimSettings.SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().AimSettings.PlayerSpeed
-    end
-end)
+-- ----------------------------------------------------
+-- عناصر الواجهة (Rayfield UI Elements)
+-- ----------------------------------------------------
 
----------------------------------------------------------
--- BUTTON EVENTS (تفعيل الأزرار من الواجهة)
----------------------------------------------------------
-AimBtn.MouseButton1Click:Connect(function()
-    getgenv().AimSettings.Enabled = not getgenv().AimSettings.Enabled
-    AimBtn.Text = getgenv().AimSettings.Enabled and "🎯 Aimbot Lock: ON" or "🎯 Aimbot Lock: OFF"
-    AimBtn.BackgroundColor3 = getgenv().AimSettings.Enabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-    if not getgenv().AimSettings.Enabled then LockedTarget = nil end
-end)
+Tab:CreateToggle({
+   Name = "تفعيل الـ Triggerbot (رأس فقط)",
+   CurrentValue = false,
+   Flag = "TriggerEnabled",
+   Callback = function(Value)
+      Settings.Enabled = Value
+   end,
+})
 
-ESPBtn.MouseButton1Click:Connect(function()
-    getgenv().AimSettings.ESPEnabled = not getgenv().AimSettings.ESPEnabled
-    ESPBtn.Text = getgenv().AimSettings.ESPEnabled and "👁️ Player ESP: ON" or "👁️ Player ESP: OFF"
-    ESPBtn.BackgroundColor3 = getgenv().AimSettings.ESPEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-    UpdateESP()
-end)
+Tab:CreateToggle({
+   Name = "فحص الفريق (عدم ضرب الأصدقاء)",
+   CurrentValue = true,
+   Flag = "TeamCheckFlag",
+   Callback = function(Value)
+      Settings.CheckTeam = Value
+   end,
+})
 
-SpeedBtn.MouseButton1Click:Connect(function()
-    getgenv().AimSettings.SpeedEnabled = not getgenv().AimSettings.SpeedEnabled
-    SpeedBtn.Text = getgenv().AimSettings.SpeedEnabled and "⚡ Speed Boost: ON" or "⚡ Speed Boost: OFF"
-    SpeedBtn.BackgroundColor3 = getgenv().AimSettings.SpeedEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
-    if not getgenv().AimSettings.SpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
-    end
-end)
+Tab:CreateSlider({
+   Name = "أقصى مسافة للاستهداف",
+   Range = {10, 500},
+   Increment = 5,
+   Suffix = "متر",
+   CurrentValue = 150,
+   Flag = "MaxDistFlag",
+   Callback = function(Value)
+      Settings.MaxDistance = Value
+   end,
+})
 
-task.spawn(function()
-    while true do
-        if getgenv().AimSettings.ESPEnabled then
-            UpdateESP()
+Tab:CreateSlider({
+   Name = "أقل تأخير بشري (ثانية)",
+   Range = {0.001, 0.1},
+   Increment = 0.001,
+   Suffix = "s",
+   CurrentValue = 0.015,
+   Flag = "MinDelayFlag",
+   Callback = function(Value)
+      Settings.MinDelay = Value
+   end,
+})
+
+Tab:CreateSlider({
+   Name = "أقصى تأخير بشري (ثانية)",
+   Range = {0.01, 0.2},
+   Increment = 0.001,
+   Suffix = "s",
+   CurrentValue = 0.045,
+   Flag = "MaxDelayFlag",
+   Callback = function(Value)
+      Settings.MaxDelay = Value
+   end,
+})
+
+-- ----------------------------------------------------
+-- المنطق البرمجية المستمر (Loop)
+-- ----------------------------------------------------
+local debounce = false
+RunService.RenderStepped:Connect(function()
+    if not Settings.Enabled or debounce then return end
+    
+    local cameraPos = Camera.CFrame.Position
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    local lookVector = Camera.CFrame.LookVector
+    local raycastResult = Workspace:Raycast(cameraPos, lookVector * Settings.MaxDistance, raycastParams)
+    
+    if raycastResult and raycastResult.Instance then
+        local hitPart = raycastResult.Instance
+        
+        -- الشرط الأساسي: استهداف الرأس حصرياً
+        if hitPart.Name == "Head" and isValidTarget(hitPart) then
+            debounce = true
+            pcall(function()
+                triggerShoot()
+            end)
+            task.wait(0.1) -- ثبات خفيف لمنع التكرار الجنوني
+            debounce = false
         end
-        task.wait(1.5)
     end
 end)
+
+Rayfield:LoadConfiguration()
