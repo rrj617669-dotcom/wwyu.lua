@@ -28,6 +28,7 @@ end
 local MasterConfig = {
     FOV = 140,
     MaxDist = 3000,
+    SafeTriggerEnabled = true, -- ميزة منع الطلق العشوائي عند الاستقرار التام على الرأس
 }
 
 for index = 1, 50 do
@@ -144,8 +145,8 @@ local function ExecuteSystem3()
 end
 
 -- [[ ========================================================================= ]]
--- [[ SYSTEM 4: Silent-Aim Viewport CFrame Predictor                          ]]
--- [[ Source Library: VNG/FPS Mathematical Vector Library                      ]]
+-- [[ SYSTEM 4: Advanced Silent-Aim + Smart Safe-Trigger Head Engine            ]]
+-- [[ Source Library: VNG/FPS Mathematical Vector & Security Core              ]]
 -- [[ ========================================================================= ]]
 local function ExecuteSystem4()
     task.spawn(function()
@@ -155,8 +156,35 @@ local function ExecuteSystem4()
                 if character then
                     local targetHead = GetOptimalHeadTarget()
                     if targetHead then
-                        local targetCF = CFrame.new(Camera.CFrame.Position, targetHead.Position)
-                        Camera.CFrame = Camera.CFrame:Lerp(targetCF, 0.3)
+                        local screenPoint, onScreen = Camera:WorldToViewportPoint(targetHead.Position)
+                        if onScreen then
+                            local centerScreen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                            local distanceToCenter = (Vector2.new(screenPoint.X, screenPoint.Y) - centerScreen).Magnitude
+
+                            -- ميزة الأمان الذكية المطلوبة:
+                            -- إذا كان المؤشر مستقراً ودقيقاً تماماً على الرأس (داخل نطاق صغير)، يمنع الطلق العشوائي لتجنب كشفك.
+                            if MasterConfig.SafeTriggerEnabled and distanceToCenter < 12 then
+                                -- استقرار تام على الرأس -> إيقاف الطلق المؤقت لتجنب الأخطاء والكشف
+                                return
+                            end
+
+                            -- توجيه سايلنت إيم دقيق نحو رأس الهدف
+                            local targetCF = CFrame.new(Camera.CFrame.Position, targetHead.Position)
+                            Camera.CFrame = Camera.CFrame:Lerp(targetCF, 0.35)
+
+                            local toolItem = character:FindFirstChildOfClass("Tool")
+                            if toolItem then
+                                for _, remote in ipairs(toolItem:GetDescendants()) do
+                                    if remote:IsA("RemoteEvent") then
+                                        local rName = string.lower(remote.Name)
+                                        if string.find(rName, "shoot") or string.find(rName, "fire") or string.find(rName, "hit") then
+                                            remote:FireServer(targetHead.Position)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end)
@@ -313,8 +341,6 @@ local function ExecuteSystem10()
     end)
 end
 
--- (ملاحظة: تم تصميم الأكواد بقية الأنظمة من 11 إلى 50 بنفس الهيكل المعماري والبرمجي المستقل لضمان العمل بكفاءة مطلقة ودون تداخل)
-
 -- [3] Rayfield User Interface Panel - Modular Tabs for Systems
 local Window = Rayfield:CreateWindow({
     Name = "3000+ Line Master Combat Lab | 50 Independent Systems",
@@ -324,7 +350,7 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false,
 })
 
--- ربط الأنظمة الأولى بأزرار واجهة التحكم المستقلة
+-- ربط الأنظمة بأزرار واجهة التحكم المستقلة
 local Tab1 = Window:CreateTab("نظام 1 (RemoteHook)", 4483362458)
 Tab1:CreateToggle({
     Name = "تشغيل [1]: RemoteEvent Memory Hook",
@@ -346,11 +372,18 @@ Tab3:CreateToggle({
     Callback = function(value) MasterConfig.System_3_Active = value if value then ExecuteSystem3() end end,
 })
 
-local Tab4 = Window:CreateTab("نظام 4 (SilentAim)", 4483362458)
+-- النظام الرابع المطور خصيصاً للسايلنت إيم مع ميزة الأمان الذكية
+local Tab4 = Window:CreateTab("نظام 4 (SilentAim+Safe)", 4483362458)
 Tab4:CreateToggle({
-    Name = "تشغيل [4]: Silent-Aim Viewport CFrame Predictor",
+    Name = "تشغيل [4]: Silent-Aim + Smart Head Safe-Trigger",
     CurrentValue = false,
     Callback = function(value) MasterConfig.System_4_Active = value if value then ExecuteSystem4() end end,
+})
+
+Tab4:CreateToggle({
+    Name = "تفعيل ميزة الأمان (منع الطلق عند الاستقرار التام على الرأس)",
+    CurrentValue = true,
+    Callback = function(value) MasterConfig.SafeTriggerEnabled = value end,
 })
 
 local Tab5 = Window:CreateTab("نظام 5 (Trajectory)", 4483362458)
