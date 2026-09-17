@@ -1,149 +1,138 @@
 -- [[ ================================================================= ]]
--- [[                   ADVANCED EXECUTOR ENGINE CORE                   ]]
--- [[                   SYSTEM ARCHITECTURE: 500+ LINES EQUIVALENT        ]]
+-- [[          ADVANCED ELITE EXECUTOR CORE - SYSTEM 500+             ]]
+-- [[          ARCHITECTURAL REBUILD: STABLE TRIGGER + MICRO RECOIL   ]]
 -- [[ ================================================================= ]]
 
--- [1] Services & Environment Verification
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- [2] Load Rayfield UI Framework securely
+-- [1] Safe UI Loading (Rayfield Framework)
 local Success, Rayfield = pcall(function()
     return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 end)
 
 if not Success or not Rayfield then
-    warn("[Core Error]: Failed to load UI Library. Running headless mode.")
+    warn("[Core Engine]: Rayfield failed to load. Operating in silent background mode.")
 end
 
--- [3] Configuration & Settings Table
-local Settings = {
+-- [2] Configuration Settings Matrix
+local Config = {
     ESPEnabled = false,
     TriggerEnabled = false,
-    MaxDistance = 500,
-    FOVRadius = 60, -- نطاق دائرة التصويب المركزية لضمان عمل الـ Triggerbot بدقة
-    MinDelay = 0.001,
-    MaxDelay = 0.015,
+    RecoilDampener = false, -- نظام التثبيت الخفيف
+    MaxDistance = 600,
+    FOVRadius = 75,
+    DampeningFactor = 0.15, -- نسبة التثبيت لتجنب اهتزاز الإيم
+    MinDelay = 0.002,
+    MaxDelay = 0.012,
     CheckTeam = true,
-    WallCheck = false,
 }
 
-local Registry = {
-    ESPInstances = {},
-    ActiveConnections = {},
+local Storage = {
+    ESPList = {},
+    Connections = {},
 }
 
--- [4] Advanced Drawing & ESP Manager (Fixing Respawn Bug)
-local function CleanupESP(player)
-    if Registry.ESPInstances[player] then
-        if Registry.ESPInstances[player].Circle then
-            Registry.ESPInstances[player].Circle:Remove()
+-- [3] Core ESP Management & Respawn Handling
+local function PurgeESP(player)
+    if Storage.ESPList[player] then
+        if Storage.ESPList[player].Ring then
+            Storage.ESPList[player].Ring:Remove()
         end
-        if Registry.ESPInstances[player].Text then
-            Registry.ESPInstances[player].Text:Remove()
+        if Storage.ESPList[player].Label then
+            Storage.ESPList[player].Label:Remove()
         end
-        Registry.ESPInstances[player] = nil
+        Storage.ESPList[player] = nil
     end
 end
 
-local function InitializeESP(player)
+local function BuildESP(player)
     if player == LocalPlayer then return end
-    CleanupESP(player)
+    PurgeESP(player)
 
-    local ESPData = {}
+    local Data = {}
     
-    -- Circle for Head
-    local HeadCircle = Drawing.new("Circle")
-    HeadCircle.Visible = false
-    HeadCircle.Color = Color3.fromRGB(255, 30, 30)
-    HeadCircle.Thickness = 2
-    HeadCircle.NumSides = 24
-    HeadCircle.Filled = false
-    ESPData.Circle = HeadCircle
+    local Ring = Drawing.new("Circle")
+    Ring.Visible = false
+    Ring.Color = Color3.fromRGB(0, 255, 120)
+    Ring.Thickness = 1.5
+    Ring.NumSides = 32
+    Ring.Filled = false
+    Data.Ring = Ring
 
-    -- Distance Text
-    local DistanceText = Drawing.new("Text")
-    DistanceText.Visible = false
-    DistanceText.Color = Color3.fromRGB(255, 255, 255)
-    DistanceText.Size = 14
-    DistanceText.Center = true
-    DistanceText.Outline = true
-    ESPData.Text = DistanceText
+    local Label = Drawing.new("Text")
+    Label.Visible = false
+    Label.Color = Color3.fromRGB(255, 255, 255)
+    Label.Size = 13
+    Label.Center = true
+    Label.Outline = true
+    Data.Label = Label
 
-    Registry.ESPInstances[player] = ESPData
+    Storage.ESPList[player] = Data
 
-    -- Robust Respawn Hook
-    local connection
-    connection = player.CharacterAdded:Connect(function(newCharacter)
-        task.wait(0.5)
-        CleanupESP(player)
-        InitializeESP(player)
+    local conn
+    conn = player.CharacterAdded:Connect(function(char)
+        task.wait(0.4)
+        PurgeESP(player)
+        BuildESP(player)
     end)
-    table.insert(Registry.ActiveConnections, connection)
+    table.insert(Storage.Connections, conn)
 end
 
--- Setup existing players
 for _, p in ipairs(Players:GetPlayers()) do
-    InitializeESP(p)
+    BuildESP(p)
 end
 
-local playerAddedConn = Players.PlayerAdded:Connect(InitializeESP)
-local playerRemovingConn = Players.PlayerRemoving:Connect(function(p)
-    CleanupESP(p)
-end)
+table.insert(Storage.Connections, Players.PlayerAdded:Connect(BuildESP))
+table.insert(Storage.Connections, Players.PlayerRemoving:Connect(PurgeESP))
 
-table.insert(Registry.ActiveConnections, playerAddedConn)
-table.insert(Registry.ActiveConnections, playerRemovingConn)
-
--- [5] Target Validation Engine
-local function IsValidTarget(character)
+-- [4] Target Verification Engine
+local function VerifyTarget(character)
     if not character then return false end
-    
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     local head = character:FindFirstChild("Head")
     
     if not humanoid or not head then return false end
     if humanoid.Health <= 0 then return false end
     
-    local targetPlayer = Players:GetPlayerFromCharacter(character)
-    if targetPlayer == LocalPlayer then return false end
-    
-    if Settings.CheckTeam and targetPlayer and targetPlayer.Team == LocalPlayer.Team then
+    local plr = Players:GetPlayerFromCharacter(character)
+    if plr == LocalPlayer then return false end
+    if Config.CheckTeam and plr and plr.Team == LocalPlayer.Team then
         return false
     end
     
     return true, head
 end
 
--- [6] Core Triggerbot Logic (Screen-Center & Viewport Matching)
-local function GetClosestHeadInScreen()
+-- [5] Screen-Center Target Resolver (FOV Calculation)
+local function GetTargetHeadInFOV()
     local viewportCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local closestHead = nil
-    local shortestDistance = Settings.FOVRadius
+    local bestHead = nil
+    local minDistance = Config.FOVRadius
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local char = player.Character
-            local isValid, head = IsValidTarget(char)
+            local status, headNode = VerifyTarget(char)
             
-            if isValid and head then
-                local screenPosition, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if status and headNode then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(headNode.Position)
                 
                 if onScreen then
-                    local worldDist = (Camera.CFrame.Position - head.Position).Magnitude
-                    if worldDist <= Settings.MaxDistance then
-                        local screenDist = (Vector2.new(screenPosition.X, screenPosition.Y) - viewportCenter).Magnitude
+                    local worldDist = (Camera.CFrame.Position - headNode.Position).Magnitude
+                    if worldDist <= Config.MaxDistance then
+                        local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - viewportCenter).Magnitude
                         
-                        if screenDist < shortestDistance then
-                            shortestDistance = screenDist
-                            closestHead = head
+                        if screenDist < minDistance then
+                            minDistance = screenDist
+                            bestHead = headNode
                         end
                     end
                 end
@@ -151,150 +140,151 @@ local function GetClosestHeadInScreen()
         end
     end
 
-    return closestHead
+    return bestHead
 end
 
--- [7] Weapon Activation & Tool Fire Handler
-local function ExecuteFireCommand()
-    local character = LocalPlayer.Character
-    if not character then return end
+-- [6] Weapon Activation & Micro-Recoil Damping
+local function TriggerAction()
+    local char = LocalPlayer.Character
+    if not char then return end
     
-    local tool = character:FindFirstChildOfClass("Tool")
+    local tool = char:FindFirstChildOfClass("Tool")
     if tool then
-        -- البحث عن ريموتات الإطلاق الخاصة بالأسلحة أو استخدام التفعيل المباشر
-        local remoteEvent = tool:FindFirstChild("OnActivate") or tool:FindFirstChild("Fire") or tool:FindFirstChild("RemoteEvent")
-        
-        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
-            pcall(function()
-                remoteEvent:FireServer()
-            end)
+        local remote = tool:FindFirstChild("OnActivate") or tool:FindFirstChild("FireEvent") or tool:FindFirstChild("RemoteEvent")
+        if remote and remote:IsA("RemoteEvent") then
+            pcall(function() remote:FireServer() end)
         else
-            pcall(function()
-                tool:Activate()
-            end)
+            pcall(function() tool:Activate() end)
         end
     end
 end
 
--- [8] Main RenderLoop Execution Stream
-local triggerDebounce = false
+local function ApplyMicroRecoil()
+    if not Config.RecoilDampener then return end
+    pcall(function()
+        -- تطبيق تصحيح تدريجي ناعم جداً على الكاميرا لامتصاص الارتداد بدون تأثير على الإيم
+        local currentRot = Camera.CFrame
+        local dampenedCFrame = currentRot * CFrame.Angles(math.rad(Config.DampeningFactor), 0, 0)
+        Camera.CFrame = Camera.CFrame:Lerp(dampenedCFrame, 0.5)
+    end)
+end
+
+-- [7] Main High-Performance Execution Loop
+local isFiring = false
 
 RunService.RenderStepped:Connect(function()
-    -- Render ESP Updates
-    for player, espData in pairs(Registry.ESPInstances) do
+    -- ESP Pipeline Update
+    for player, data in pairs(Storage.ESPList) do
         local char = player.Character
-        local isValid, head = IsValidTarget(char)
+        local valid, head = VerifyTarget(char)
         
-        if Settings.ESPEnabled and isValid and head then
-            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+        if Config.ESPEnabled and valid and head then
+            local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
             if onScreen then
                 local dist = (Camera.CFrame.Position - head.Position).Magnitude
-                if dist <= Settings.MaxDistance then
-                    local scaleFactor = math.clamp(1000 / dist, 5, 25)
+                if dist <= Config.MaxDistance then
+                    local scale = math.clamp(900 / dist, 4, 22)
                     
-                    espData.Circle.Radius = scaleFactor
-                    espData.Circle.Position = Vector2.new(screenPos.X, screenPos.Y)
-                    espData.Circle.Visible = true
+                    data.Ring.Radius = scale
+                    data.Ring.Position = Vector2.new(pos.X, pos.Y)
+                    data.Ring.Visible = true
 
-                    espData.Text.Position = Vector2.new(screenPos.X, screenPos.Y + scaleFactor + 4)
-                    espData.Text.Text = math.floor(dist) .. "m"
-                    espData.Text.Visible = true
+                    data.Label.Position = Vector2.new(pos.X, pos.Y + scale + 3)
+                    data.Label.Text = math.floor(dist) .. "m"
+                    data.Label.Visible = true
                 else
-                    espData.Circle.Visible = false
-                    espData.Text.Visible = false
+                    data.Ring.Visible = false
+                    data.Label.Visible = false
                 end
             else
-                espData.Circle.Visible = false
-                espData.Text.Visible = false
+                data.Ring.Visible = false
+                data.Label.Visible = false
             end
         else
-            if espData.Circle then espData.Circle.Visible = false end
-            if espData.Text then espData.Text.Visible = false end
+            if data.Ring then data.Ring.Visible = false end
+            if data.Label then data.Label.Visible = false end
         end
     end
 
-    -- Triggerbot Execution Check
-    if Settings.TriggerEnabled and not triggerDebounce then
-        local targetHead = GetClosestHeadInScreen()
+    -- Triggerbot & Recoil Control Pipeline
+    if Config.TriggerEnabled and not isFiring then
+        local target = GetTargetHeadInFOV()
         
-        if targetHead then
-            triggerDebounce = true
+        if target then
+            isFiring = true
             
-            -- Humanized Micro-Delay
-            local randomDelay = math.random(Settings.MinDelay * 1000, Settings.MaxDelay * 1000) / 1000
-            task.wait(randomDelay)
+            local humanizedWait = math.random(Config.MinDelay * 1000, Config.MaxDelay * 1000) / 1000
+            task.wait(humanizedWait)
             
             pcall(function()
-                ExecuteFireCommand()
+                TriggerAction()
+                ApplyMicroRecoil()
             end)
             
-            task.wait(0.05) -- ثبات تكتيكي لتجنب الحظر والتكرار المفرط
-            triggerDebounce = false
+            task.wait(0.04)
+            isFiring = false
         end
     end
 end)
 
--- [9] Rayfield User Interface Construction
+-- [8] Rayfield User Interface Panel
 if Rayfield then
-    local Window = Rayfield:CreateWindow({
-        Name = "Advanced GitHub Framework | Elite Hub",
-        LoadingTitle = "جاري تهيئة النظام البرمجي...",
-        LoadingSubtitle = "By GitHub Core Systems",
+    local Win = Rayfield:CreateWindow({
+        Name = "Elite Core | Advanced Engine System",
+        LoadingTitle = "جاري بناء وتفعيل الأنظمة المتقدمة...",
+        LoadingSubtitle = "By Elite Development Group",
         ConfigurationSaving = { Enabled = false },
         KeySystem = false,
     })
 
-    local MainTab = Window:CreateTab("لوحة التحكم والضبط", 4483362458)
+    local Tab = Win:CreateTab("التحكم والضبط الذكي", 4483362458)
 
-    MainTab:CreateToggle({
-        Name = "تفعيل ESP الرأس (مع دعم الموت والعودة)",
+    Tab:CreateToggle({
+        Name = "تفعيل ESP الرأس (دعم الموت والعودة)",
         CurrentValue = false,
-        Flag = "ESP_Toggle",
-        Callback = function(Value)
-            Settings.ESPEnabled = Value
-        end,
+        Flag = "ESP_Key",
+        Callback = function(v) Config.ESPEnabled = v end,
     })
 
-    MainTab:CreateToggle({
+    Tab:CreateToggle({
         Name = "تفعيل الطلق التلقائي (Triggerbot)",
         CurrentValue = false,
-        Flag = "Trigger_Toggle",
-        Callback = function(Value)
-            Settings.TriggerEnabled = Value
-        end,
+        Flag = "Trig_Key",
+        Callback = function(v) Config.TriggerEnabled = v end,
     })
 
-    MainTab:CreateToggle({
+    Tab:CreateToggle({
+        Name = "نظام التثبيت الخفيف (Anti-Recoil Smooth)",
+        CurrentValue = false,
+        Flag = "Recoil_Key",
+        Callback = function(v) Config.RecoilDampener = v end,
+    })
+
+    Tab:CreateToggle({
         Name = "فحص الفريق (TeamCheck)",
         CurrentValue = true,
-        Flag = "Team_Toggle",
-        Callback = function(Value)
-            Settings.CheckTeam = Value
-        end,
+        Flag = "Team_Key",
+        Callback = function(v) Config.CheckTeam = v end,
     })
 
-    MainTab:CreateSlider({
-        Name = "مدى دائرة الاستشعار (FOV Radius)",
-        Range = {10, 200},
+    Tab:CreateSlider({
+        Name = "دائرة الاستشعار (FOV Size)",
+        Range = {20, 150},
         Increment = 5,
         Suffix = "px",
-        CurrentValue = 60,
-        Flag = "FOV_Slider",
-        Callback = function(Value)
-            Settings.FOVRadius = Value
-        end,
+        CurrentValue = 75,
+        Flag = "FOV_Key",
+        Callback = function(v) Config.FOVRadius = v end,
     })
 
-    MainTab:CreateSlider({
-        Name = "أقصى مسافة للعمل (Max Distance)",
-        Range = {50, 1000},
-        Increment = 25,
+    Tab:CreateSlider({
+        Name = "أقصى مسافة رصد (Max Distance)",
+        Range = {100, 1500},
+        Increment = 50,
         Suffix = "m",
-        CurrentValue = 500,
-        Flag = "Dist_Slider",
-        Callback = function(Value)
-            Settings.MaxDistance = Value
-        end,
+        CurrentValue = 600,
+        Flag = "Dist_Key",
+        Callback = function(v) Config.MaxDistance = v end,
     })
 
     Rayfield:LoadConfiguration()
