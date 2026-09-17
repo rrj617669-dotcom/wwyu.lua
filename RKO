@@ -1,24 +1,23 @@
--- استدعاء مكتبة الواجهة Rayfield
+-- استدعاء مكتبة واجهة Rayfield
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- إضاءة نافذة التحكم
 local Window = Rayfield:CreateWindow({
-   Name = "Head ESP & Triggerbot | Hub",
-   LoadingTitle = "جاري تفعيل النظام...",
-   LoadingSubtitle = "بواسطة Assistant",
+   Name = "Advanced Head ESP & Triggerbot",
+   LoadingTitle = "جاري تحميل النظام المحدث...",
+   LoadingSubtitle = "بواسطة Expert Engine",
    ConfigurationSaving = { Enabled = false },
    KeySystem = false,
 })
 
-local Tab = Window:CreateTab("التحكم والـ ESP", 4483362458)
+local Tab = Window:CreateTab("التحكم والضبط", 4483362458)
 
--- الإعدادات الأساسية
+-- الإعدادات
 local Settings = {
     ESPEnabled = false,
     TriggerEnabled = false,
-    MaxDistance = 200,
-    MinDelay = 0.01,
-    MaxDelay = 0.03,
+    MaxDistance = 300,
+    MinDelay = 0.005,
+    MaxDelay = 0.02,
     CheckTeam = true
 }
 
@@ -28,44 +27,48 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- جدول لتخزين الـ ESP الخاص باللاعبين
 local espBoxes = {}
 
--- دالة إنشاء الـ ESP للرأس
-local function createESP(player)
+-- دالة إنشاء الـ ESP مع دعم الموت والرجوع للحياة (Respawn Fix)
+local function setupPlayerESP(player)
     if player == LocalPlayer then return end
-    
-    local box = Drawing.new("Circle")
-    box.Visible = false
-    box.Color = Color3.fromRGB(255, 0, 0) -- لون أحمر ساطع على الراس
-    box.Thickness = 2
-    box.NumSides = 12
-    box.Filled = false
-    
-    espBoxes[player] = box
-    
-    player.CharacterRemoving:Connect(function()
+
+    local function createDrawing()
         if espBoxes[player] then
-            espBoxes[player].Visible = false
             espBoxes[player]:Remove()
             espBoxes[player] = nil
         end
+
+        local box = Drawing.new("Circle")
+        box.Visible = false
+        box.Color = Color3.fromRGB(255, 0, 0)
+        box.Thickness = 2
+        box.NumSides = 16
+        box.Filled = false
+        espBoxes[player] = box
+    end
+
+    createDrawing()
+
+    player.CharacterAdded:Connect(function(newChar)
+        createDrawing()
     end)
 end
 
 for _, p in ipairs(Players:GetPlayers()) do
-    createESP(p)
+    setupPlayerESP(p)
 end
-Players.PlayerAdded:Connect(createESP)
+
+Players.PlayerAdded:Connect(setupPlayerESP)
+
 Players.PlayerRemoving:Connect(function(p)
     if espBoxes[p] then
-        espBoxes[p].Visible = false
         espBoxes[p]:Remove()
         espBoxes[p] = nil
     end
 end)
 
--- دالة التحقق من صحة الهدف
+-- التحقق من صحة الهدف
 local function isValidTarget(targetPart)
     local character = targetPart.Parent
     if not character then return false end
@@ -82,7 +85,7 @@ local function isValidTarget(targetPart)
     return false
 end
 
--- دالة إطلاق النار التلقائي المتوافقة مع أداة السلاح
+-- دالة الطلق التلقائي الفعالة
 local function triggerShoot()
     local humanDelay = math.random(Settings.MinDelay * 1000, Settings.MaxDelay * 1000) / 1000
     task.wait(humanDelay)
@@ -91,7 +94,6 @@ local function triggerShoot()
     if character then
         local tool = character:FindFirstChildOfClass("Tool")
         if tool then
-            -- استهداف مسار OnActivate أو التفعيل المباشر
             local onActivateEvent = tool:FindFirstChild("OnActivate")
             if onActivateEvent and onActivateEvent:IsA("RemoteEvent") then
                 onActivateEvent:FireServer()
@@ -102,21 +104,21 @@ local function triggerShoot()
     end
 end
 
--- التشغيل المستمر (RenderStepped للـ ESP والـ Triggerbot)
+-- حلقة التحديث المستمر (RenderStepped)
 local debounce = false
 RunService.RenderStepped:Connect(function()
-    -- تحديث الـ ESP لكل اللاعبين
+    -- تحديث وإظهار الـ ESP للرأس بدقة
     for player, box in pairs(espBoxes) do
         local char = player.Character
         local head = char and char:FindFirstChild("Head")
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
         
-        if Settings.ESPEnabled and head and char:FindFirstChildOfClass("Humanoid") and char.Humanoid.Health > 0 then
+        if Settings.ESPEnabled and head and humanoid and humanoid.Health > 0 then
             local vector, onScreen = Camera:WorldToViewportPoint(head.Position)
             if onScreen then
-                -- تحديد حجم الدائرة حسب المسافة
                 local distance = (Camera.CFrame.Position - head.Position).Magnitude
                 if distance <= Settings.MaxDistance then
-                    box.Radius = math.clamp(1500 / distance, 5, 25)
+                    box.Radius = math.clamp(1200 / distance, 4, 22)
                     box.Position = Vector2.new(vector.X, vector.Y)
                     box.Visible = true
                 else
@@ -130,8 +132,8 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    -- منطق الـ Triggerbot (الطلق التلقائي على الرأس)
-    if not Settings.Enabled or not Settings.TriggerEnabled or debounce then return end
+    -- نظام الطلق التلقائي (Triggerbot)
+    if not Settings.TriggerEnabled or debounce then return end
     
     local cameraPos = Camera.CFrame.Position
     local raycastParams = RaycastParams.new()
@@ -144,23 +146,20 @@ RunService.RenderStepped:Connect(function()
     if raycastResult and raycastResult.Instance then
         local hitPart = raycastResult.Instance
         
-        -- التحقق هل الجزء الملامس لمنتصف الشاشة هو الرأس (`Head`)
         if hitPart.Name == "Head" and isValidTarget(hitPart) then
             debounce = true
             pcall(function()
                 triggerShoot()
             end)
-            task.wait(0.1) -- فاصل زمني بسيط لثبات الطلق
+            task.wait(0.08)
             debounce = false
         end
     end
 end)
 
--- ----------------------------------------------------
--- أزرار التحكم في واجهة Rayfield
--- ----------------------------------------------------
+-- أزرار الواجهة
 Tab:CreateToggle({
-   Name = "تفعيل الـ ESP الأحمر على الرأس",
+   Name = "تفعيل ESP الرأس (مع دعم العودة بعد الموت)",
    CurrentValue = false,
    Flag = "ESPFlag",
    Callback = function(Value)
@@ -169,17 +168,16 @@ Tab:CreateToggle({
 })
 
 Tab:CreateToggle({
-   Name = "تفعيل الطلق التلقائي على الرأس (Triggerbot)",
+   Name = "تفعيل الطلق التلقائي على الرأس",
    CurrentValue = false,
    Flag = "TriggerFlag",
    Callback = function(Value)
       Settings.TriggerEnabled = Value
-      Settings.Enabled = Value
    end,
 })
 
 Tab:CreateToggle({
-   Name = "فحص الفريق (عدم ضرب الأصدقاء)",
+   Name = "فحص الفريق (TeamCheck)",
    CurrentValue = true,
    Flag = "TeamFlag",
    Callback = function(Value)
@@ -188,11 +186,11 @@ Tab:CreateToggle({
 })
 
 Tab:CreateSlider({
-   Name = "أقصى مسافة للعمل",
+   Name = "مدى الرؤية والعمل",
    Range = {50, 500},
    Increment = 10,
    Suffix = "متر",
-   CurrentValue = 200,
+   CurrentValue = 300,
    Flag = "DistFlag",
    Callback = function(Value)
       Settings.MaxDistance = Value
