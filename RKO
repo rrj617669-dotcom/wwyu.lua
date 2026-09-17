@@ -1,431 +1,133 @@
--- [[ ========================================================================= ]]
--- [[        ULTIMATE 3000+ LINE OMNI-COMBAT ARCHITECTURE (50 SYSTEMS)          ]]
--- [[        Fully Modular, Independent Engines, Source Libraries & UIs         ]]
--- [[ ========================================================================= ]]
+-- [[ LocalScript - Name Changer GUI ]]
+-- ضع هذا السكربت في StarterPlayerScripts أو PlayerGui عبر المنفذ الخاص بك
 
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local VirtualUser = game:GetService("VirtualUser")
-local HttpService = game:GetService("HttpService")
-
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- [1] Safe UI Loading (Rayfield Framework)
-local Success, Rayfield = pcall(function()
-    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- إنشاء واجهة المستخدم (GUI)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NameChangerGUI"
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- عنوان القائمة
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "Name Changer GUI"
+Title.Parent = MainFrame
+
+-- صندوق كتابة الاسم الجديد
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(0.9, 0, 0, 40)
+TextBox.Position = UDim2.new(0.05, 0, 0.75, 0)
+TextBox.PlaceholderText = "اكتب الاسم الجديد هنا..."
+TextBox.Text = ""
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TextBox.TextSize = 16
+TextBox.Font = Enum.Font.SourceSans
+TextBox.Parent = MainFrame
+
+-- زر التغيير
+local ChangeBtn = Instance.new("TextButton")
+ChangeBtn.Size = UDim2.new(0.9, 0, 0, 40)
+ChangeBtn.Position = UDim2.new(0.05, 0, 0.86, 0)
+ChangeBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+ChangeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ChangeBtn.TextSize = 16
+ChangeBtn.Font = Enum.Font.SourceSansBold
+ChangeBtn.Text = "تغيير الاسم"
+ChangeBtn.Parent = MainFrame
+
+-- قائمة اللاعبين (ScrollingFrame)
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Size = UDim2.new(0.9, 0, 0, 220)
+ScrollingFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+ScrollingFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollingFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local selectedPlayer = nil
+
+-- دالة لتحديث قائمة اللاعبين في الواجهة
+local function updatePlayerList()
+	-- حذف الأزرار القديمة لتجنب التكرار
+	for _, child in ipairs(ScrollingFrame:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	-- إضافة اللاعبين الحاليين
+	for _, player in ipairs(Players:GetPlayers()) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, 0, 0, 30)
+		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextSize = 14
+		btn.Font = Enum.Font.SourceSans
+		btn.Text = player.Name
+		btn.Parent = ScrollingFrame
+
+		-- عند اختيار لاعب من القائمة
+		btn.MouseButton1Click:Connect(function()
+			selectedPlayer = player
+			Title.Text = "تم اختيار: " .. player.Name
+		end)
+	end
+	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+end
+
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+updatePlayerList()
+
+-- تنفيذ تغيير الاسم محلياً (يظهر عندك أنت فقط)
+ChangeBtn.MouseButton1Click:Connect(function()
+	if selectedPlayer and selectedPlayer.Character and TextBox.Text ~= "" then
+		local humanoid = selectedPlayer.Character:FindFirstChildOfClass("Humanoid")
+		local head = selectedPlayer.Character:FindFirstChild("Head")
+		
+		if head then
+			-- البحث عن لوحة الاسم القديمة فوق الرأس وإزالتها أو تعديلها
+			local billboard = head:FindFirstChild("NameGuiOverride") or Instance.new("BillboardGui")
+			billboard.Name = "NameGuiOverride"
+			billboard.Size = UDim2.new(0, 200, 0, 50)
+			billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+			billboard.AlwaysOnTop = true
+			billboard.Parent = head
+			
+			local textLabel = billboard:FindFirstChild("TextLabel") or Instance.new("TextLabel")
+			textLabel.Size = UDim2.new(1, 0, 1, 0)
+			textLabel.BackgroundTransparency = 1
+			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			textLabel.TextStrokeTransparency = 0 -- جعل النص واضحاً بإطار أسود
+			textLabel.TextSize = 18
+			textLabel.Font = Enum.Font.SourceSansBold
+			textLabel.Text = TextBox.Text
+			textLabel.Parent = billboard
+			
+			-- إخفاء الاسم الأصلي للعبة إن وجد
+			if humanoid then
+				humanoid.DisplayName = TextBox.Text
+			end
+		end
+	end
 end)
-
-if not Success or not Rayfield then
-    warn("[Omni-Matrix Core]: Rayfield UI failed to load. Initializing Headless Matrix.")
-    return
-end
-
--- [2] Master Systems Configuration & State Registry (50 Systems Matrix)
-local MasterConfig = {
-    FOV = 140,
-    MaxDist = 3000,
-    SafeTriggerEnabled = true, -- ميزة منع الطلق العشوائي عند الاستقرار التام على الرأس
-}
-
-for index = 1, 50 do
-    MasterConfig["System_" .. index .. "_Active"] = false
-end
-
--- Global Target Resolver (Core Engine)
-local function GetOptimalHeadTarget()
-    local ViewportCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local BestHeadNode = nil
-    local SmallestDistance = MasterConfig.FOV
-
-    for _, playerObj in ipairs(Players:GetPlayers()) do
-        if playerObj ~= LocalPlayer and playerObj.Character then
-            local humanoid = playerObj.Character:FindFirstChildOfClass("Humanoid")
-            local headPart = playerObj.Character:FindFirstChild("Head")
-            if humanoid and headPart and humanoid.Health > 0 then
-                if not (MasterConfig.TeamCheck and playerObj.Team == LocalPlayer.Team) then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(headPart.Position)
-                    if onScreen then
-                        local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - ViewportCenter).Magnitude
-                        if screenDist < SmallestDistance then
-                            SmallestDistance = screenDist
-                            BestHeadNode = headPart
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return BestHeadNode
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 1: RemoteEvent Memory Hook Engine                                 ]]
--- [[ Source Library: Synapse Luau Internal Hook / Ro-Exec V3 Core             ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem1()
-    task.spawn(function()
-        while MasterConfig.System_1_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local toolItem = character:FindFirstChildOfClass("Tool")
-                    if toolItem then
-                        local targetHead = GetOptimalHeadTarget()
-                        if targetHead then
-                            for _, childNode in ipairs(toolItem:GetDescendants()) do
-                                if childNode:IsA("RemoteEvent") then
-                                    local lowerName = string.lower(childNode.Name)
-                                    if string.find(lowerName, "shoot") or string.find(lowerName, "fire") or string.find(lowerName, "hit") or string.find(lowerName, "attack") then
-                                        childNode:FireServer(targetHead.Position)
-                                        task.wait(0.002)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-            task.wait(0.01)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 2: VirtualUser Hardware Emulation Matrix                         ]]
--- [[ Source Library: CoreGui Roblox Service API & VirtualInputManager         ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem2()
-    task.spawn(function()
-        while MasterConfig.System_2_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local toolItem = character:FindFirstChildOfClass("Tool")
-                    if toolItem then
-                        local targetHead = GetOptimalHeadTarget()
-                        if targetHead then
-                            VirtualUser:Button1Down(Vector2.new(0, 0), Camera.CFrame)
-                            task.wait(0.001)
-                            VirtualUser:Button1Up(Vector2.new(0, 0), Camera.CFrame)
-                        end
-                    end
-                end
-            end)
-            task.wait(0.015)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 3: Native Tool Activation Protocol                                ]]
--- [[ Source Library: Roblox Standard Engine API (`tool:Activate()`)           ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem3()
-    task.spawn(function()
-        while MasterConfig.System_3_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local toolItem = character:FindFirstChildOfClass("Tool")
-                    if toolItem then
-                        local targetHead = GetOptimalHeadTarget()
-                        if targetHead then
-                            toolItem:Activate()
-                        end
-                    end
-                end
-            end)
-            task.wait(0.01)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 4: Advanced Silent-Aim + Smart Safe-Trigger Head Engine            ]]
--- [[ Source Library: VNG/FPS Mathematical Vector & Security Core              ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem4()
-    task.spawn(function()
-        while MasterConfig.System_4_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local targetHead = GetOptimalHeadTarget()
-                    if targetHead then
-                        local screenPoint, onScreen = Camera:WorldToViewportPoint(targetHead.Position)
-                        if onScreen then
-                            local centerScreen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                            local distanceToCenter = (Vector2.new(screenPoint.X, screenPoint.Y) - centerScreen).Magnitude
-
-                            -- ميزة الأمان الذكية المطلوبة:
-                            -- إذا كان المؤشر مستقراً ودقيقاً تماماً على الرأس (داخل نطاق صغير)، يمنع الطلق العشوائي لتجنب كشفك.
-                            if MasterConfig.SafeTriggerEnabled and distanceToCenter < 12 then
-                                -- استقرار تام على الرأس -> إيقاف الطلق المؤقت لتجنب الأخطاء والكشف
-                                return
-                            end
-
-                            -- توجيه سايلنت إيم دقيق نحو رأس الهدف
-                            local targetCF = CFrame.new(Camera.CFrame.Position, targetHead.Position)
-                            Camera.CFrame = Camera.CFrame:Lerp(targetCF, 0.35)
-
-                            local toolItem = character:FindFirstChildOfClass("Tool")
-                            if toolItem then
-                                for _, remote in ipairs(toolItem:GetDescendants()) do
-                                    if remote:IsA("RemoteEvent") then
-                                        local rName = string.lower(remote.Name)
-                                        if string.find(rName, "shoot") or string.find(rName, "fire") or string.find(rName, "hit") then
-                                            remote:FireServer(targetHead.Position)
-                                            break
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-            RunService.RenderStepped:Wait()
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 5: Dynamic Velocity Trajectory Interceptor                      ]]
--- [[ Source Library: Physics Engine Kinematic Vector Calculator              ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem5()
-    task.spawn(function()
-        while MasterConfig.System_5_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local toolItem = character:FindFirstChildOfClass("Tool")
-                    if toolItem then
-                        local targetHead = GetOptimalHeadTarget()
-                        if targetHead and targetHead.Parent then
-                            local rootPart = targetHead.Parent:FindFirstChild("HumanoidRootPart")
-                            if rootPart then
-                                local velocityVector = rootPart.Velocity
-                                local predictedPos = targetHead.Position + (velocityVector * 0.035)
-                                toolItem:Activate()
-                            end
-                        end
-                    end
-                end
-            end)
-            task.wait(0.015)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 6: BindableEvent Internal Dispatcher                              ]]
--- [[ Source Library: Roblox Core Script Architecture API                      ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem6()
-    task.spawn(function()
-        while MasterConfig.System_6_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local toolItem = character:FindFirstChildOfClass("Tool")
-                    if toolItem then
-                        local bindableEvent = toolItem:FindFirstChildOfClass("BindableEvent")
-                        if bindableEvent then
-                            bindableEvent:Fire()
-                        end
-                    end
-                end
-            end)
-            task.wait(0.02)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 7: Camera LookVector Alignment Force                              ]]
--- [[ Source Library: CFrame Matrix Trigonometry Library                       ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem7()
-    task.spawn(function()
-        while MasterConfig.System_7_Active do
-            pcall(function()
-                local targetHead = GetOptimalHeadTarget()
-                if targetHead then
-                    local lookVec = Camera.CFrame.LookVector
-                    local directionUnit = (targetHead.Position - Camera.CFrame.Position).Unit
-                    if lookVec:Dot(directionUnit) > 0.35 then
-                        local character = LocalPlayer.Character
-                        if character then
-                            local toolItem = character:FindFirstChildOfClass("Tool")
-                            if toolItem then toolItem:Activate() end
-                        end
-                    end
-                end
-            end)
-            task.wait(0.015)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 8: Automated Burst Pulse Modulator                                ]]
--- [[ Source Library: Advanced Fire-Rate Controller Kit                       ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem8()
-    task.spawn(function()
-        while MasterConfig.System_8_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local toolItem = character:FindFirstChildOfClass("Tool")
-                    if toolItem then
-                        local targetHead = GetOptimalHeadTarget()
-                        if targetHead then
-                            for loopIdx = 1, 4 do
-                                toolItem:Activate()
-                                task.wait(0.001)
-                            end
-                        end
-                    end
-                end
-            end)
-            task.wait(0.04)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 9: Tool Handle Physics Property Manipulator                     ]]
--- [[ Source Library: Roblox Part Instance Simulation Kit                      ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem9()
-    task.spawn(function()
-        while MasterConfig.System_9_Active do
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character then
-                    local toolItem = character:FindFirstChildOfClass("Tool")
-                    if toolItem then
-                        local handlePart = toolItem:FindFirstChild("Handle")
-                        if handlePart and handlePart:IsA("BasePart") then
-                            local targetHead = GetOptimalHeadTarget()
-                            if targetHead then toolItem:Activate() end
-                        end
-                    end
-                end
-            end)
-            task.wait(0.02)
-        end
-    end)
-end
-
--- [[ ========================================================================= ]]
--- [[ SYSTEM 10: Advanced Anti-Recoil Compensation Vector                      ]]
--- [[ Source Library: FPS Camera Stabilization Matrix                          ]]
--- [[ ========================================================================= ]]
-local function ExecuteSystem10()
-    task.spawn(function()
-        while MasterConfig.System_10_Active do
-            pcall(function()
-                local currentCF = Camera.CFrame
-                local compensatedCF = currentCF * CFrame.Angles(math.rad(0.04), 0, 0)
-                Camera.CFrame = Camera.CFrame:Lerp(compensatedCF, 0.4)
-            end)
-            RunService.RenderStepped:Wait()
-        end
-    end)
-end
-
--- [3] Rayfield User Interface Panel - Modular Tabs for Systems
-local Window = Rayfield:CreateWindow({
-    Name = "3000+ Line Master Combat Lab | 50 Independent Systems",
-    LoadingTitle = "جاري تفعيل واجهة الـ 50 نظاماً المستقلة...",
-    LoadingSubtitle = "By Ultimate Architecture Matrix",
-    ConfigurationSaving = { Enabled = false },
-    KeySystem = false,
-})
-
--- ربط الأنظمة بأزرار واجهة التحكم المستقلة
-local Tab1 = Window:CreateTab("نظام 1 (RemoteHook)", 4483362458)
-Tab1:CreateToggle({
-    Name = "تشغيل [1]: RemoteEvent Memory Hook",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_1_Active = value if value then ExecuteSystem1() end end,
-})
-
-local Tab2 = Window:CreateTab("نظام 2 (VirtualUser)", 4483362458)
-Tab2:CreateToggle({
-    Name = "تشغيل [2]: VirtualUser Hardware Emulation",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_2_Active = value if value then ExecuteSystem2() end end,
-})
-
-local Tab3 = Window:CreateTab("نظام 3 (ToolDirect)", 4483362458)
-Tab3:CreateToggle({
-    Name = "تشغيل [3]: Native Tool Activation Protocol",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_3_Active = value if value then ExecuteSystem3() end end,
-})
-
--- النظام الرابع المطور خصيصاً للسايلنت إيم مع ميزة الأمان الذكية
-local Tab4 = Window:CreateTab("نظام 4 (SilentAim+Safe)", 4483362458)
-Tab4:CreateToggle({
-    Name = "تشغيل [4]: Silent-Aim + Smart Head Safe-Trigger",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_4_Active = value if value then ExecuteSystem4() end end,
-})
-
-Tab4:CreateToggle({
-    Name = "تفعيل ميزة الأمان (منع الطلق عند الاستقرار التام على الرأس)",
-    CurrentValue = true,
-    Callback = function(value) MasterConfig.SafeTriggerEnabled = value end,
-})
-
-local Tab5 = Window:CreateTab("نظام 5 (Trajectory)", 4483362458)
-Tab5:CreateToggle({
-    Name = "تشغيل [5]: Dynamic Velocity Trajectory Interceptor",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_5_Active = value if value then ExecuteSystem5() end end,
-})
-
-local Tab6 = Window:CreateTab("نظام 6 (Bindable)", 4483362458)
-Tab6:CreateToggle({
-    Name = "تشغيل [6]: BindableEvent Internal Dispatcher",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_6_Active = value if value then ExecuteSystem6() end end,
-})
-
-local Tab7 = Window:CreateTab("نظام 7 (LookVector)", 4483362458)
-Tab7:CreateToggle({
-    Name = "تشغيل [7]: Camera LookVector Alignment Force",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_7_Active = value if value then ExecuteSystem7() end end,
-})
-
-local Tab8 = Window:CreateTab("نظام 8 (BurstPulse)", 4483362458)
-Tab8:CreateToggle({
-    Name = "تشغيل [8]: Automated Burst Pulse Modulator",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_8_Active = value if value then ExecuteSystem8() end end,
-})
-
-local Tab9 = Window:CreateTab("نظام 9 (HandlePhysics)", 4483362458)
-Tab9:CreateToggle({
-    Name = "تشغيل [9]: Tool Handle Physics Property Manipulator",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_9_Active = value if value then ExecuteSystem9() end end,
-})
-
-local Tab10 = Window:CreateTab("نظام 10 (AntiRecoil)", 4483362458)
-Tab10:CreateToggle({
-    Name = "تشغيل [10]: Advanced Anti-Recoil Compensation Vector",
-    CurrentValue = false,
-    Callback = function(value) MasterConfig.System_10_Active = value if value then ExecuteSystem10() end end,
-})
-
-Rayfield:LoadConfiguration()
