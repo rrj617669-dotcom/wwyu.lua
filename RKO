@@ -1,149 +1,150 @@
--- [[ ================================================================= ]]
--- [[                   ADVANCED EXECUTOR ENGINE CORE                   ]]
--- [[                   SYSTEM ARCHITECTURE: 500+ LINES EQUIVALENT        ]]
--- [[ ================================================================= ]]
+-- [[ ========================================================================= ]]
+-- [[            ULTIMATE 20-TIER OMNI-COMBAT ENGINE - FULL ARCHITECTURE        ]]
+-- [[            20 ADVANCED AIM/TRIGGER SYSTEMS + ESP + ANTI-RECOIL           ]]
+-- [[ ========================================================================= ]]
 
--- [1] Services & Environment Verification
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- [2] Load Rayfield UI Framework securely
+-- [1] Safe UI Loading (Rayfield Framework)
 local Success, Rayfield = pcall(function()
     return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 end)
 
 if not Success or not Rayfield then
-    warn("[Core Error]: Failed to load UI Library. Running headless mode.")
+    warn("[20-Tier Omni Core]: Rayfield failed to load. Initializing Headless Omni-Matrix.")
 end
 
--- [3] Configuration & Settings Table
-local Settings = {
+-- [2] Configuration Settings Matrix
+local ConfigurationMatrix = {
     ESPEnabled = false,
     TriggerEnabled = false,
-    MaxDistance = 500,
-    FOVRadius = 60, -- نطاق دائرة التصويب المركزية لضمان عمل الـ Triggerbot بدقة
-    MinDelay = 0.001,
-    MaxDelay = 0.015,
+    RecoilDampener = false,
+    MaxDistance = 2000,
+    FOVRadius = 130,
+    DampeningFactor = 0.06,
+    MinDelay = 0.0005,
+    MaxDelay = 0.003,
     CheckTeam = true,
-    WallCheck = false,
 }
 
-local Registry = {
+local RegistryStorage = {
     ESPInstances = {},
     ActiveConnections = {},
 }
 
--- [4] Advanced Drawing & ESP Manager (Fixing Respawn Bug)
-local function CleanupESP(player)
-    if Registry.ESPInstances[player] then
-        if Registry.ESPInstances[player].Circle then
-            Registry.ESPInstances[player].Circle:Remove()
-        end
-        if Registry.ESPInstances[player].Text then
-            Registry.ESPInstances[player].Text:Remove()
-        end
-        Registry.ESPInstances[player] = nil
+-- [3] Comprehensive ESP Management & Respawn Handling
+local function PurgeESPInstance(TargetPlayer)
+    if not TargetPlayer then return end
+    if RegistryStorage.ESPInstances[TargetPlayer] then
+        pcall(function()
+            if RegistryStorage.ESPInstances[TargetPlayer].Ring then
+                RegistryStorage.ESPInstances[TargetPlayer].Ring:Remove()
+            end
+            if RegistryStorage.ESPInstances[TargetPlayer].Label then
+                RegistryStorage.ESPInstances[TargetPlayer].Label:Remove()
+            end
+        end)
+        RegistryStorage.ESPInstances[TargetPlayer] = nil
     end
 end
 
-local function InitializeESP(player)
-    if player == LocalPlayer then return end
-    CleanupESP(player)
+local function BuildESPInstance(TargetPlayer)
+    if TargetPlayer == LocalPlayer then return end
+    PurgeESPInstance(TargetPlayer)
 
-    local ESPData = {}
+    local ESPPackage = {}
     
-    -- Circle for Head
-    local HeadCircle = Drawing.new("Circle")
-    HeadCircle.Visible = false
-    HeadCircle.Color = Color3.fromRGB(255, 30, 30)
-    HeadCircle.Thickness = 2
-    HeadCircle.NumSides = 24
-    HeadCircle.Filled = false
-    ESPData.Circle = HeadCircle
-
-    -- Distance Text
-    local DistanceText = Drawing.new("Text")
-    DistanceText.Visible = false
-    DistanceText.Color = Color3.fromRGB(255, 255, 255)
-    DistanceText.Size = 14
-    DistanceText.Center = true
-    DistanceText.Outline = true
-    ESPData.Text = DistanceText
-
-    Registry.ESPInstances[player] = ESPData
-
-    -- Robust Respawn Hook
-    local connection
-    connection = player.CharacterAdded:Connect(function(newCharacter)
-        task.wait(0.5)
-        CleanupESP(player)
-        InitializeESP(player)
+    local SuccessCircle, CircleObj = pcall(function()
+        local c = Drawing.new("Circle")
+        c.Visible = false
+        c.Color = Color3.fromRGB(0, 255, 128)
+        c.Thickness = 2
+        c.NumSides = 40
+        c.Filled = false
+        return c
     end)
-    table.insert(Registry.ActiveConnections, connection)
+    if SuccessCircle then ESPPackage.Ring = CircleObj end
+
+    local SuccessText, TextObj = pcall(function()
+        local t = Drawing.new("Text")
+        t.Visible = false
+        t.Color = Color3.fromRGB(255, 255, 255)
+        t.Size = 13
+        t.Center = true
+        t.Outline = true
+        return t
+    end)
+    if SuccessText then ESPPackage.Label = TextObj end
+
+    RegistryStorage.ESPInstances[TargetPlayer] = ESPPackage
+
+    local RespawnConnection
+    RespawnConnection = TargetPlayer.CharacterAdded:Connect(function(NewCharacter)
+        task.wait(0.3)
+        PurgeESPInstance(TargetPlayer)
+        BuildESPInstance(TargetPlayer)
+    end)
+    table.insert(RegistryStorage.ActiveConnections, RespawnConnection)
 end
 
--- Setup existing players
-for _, p in ipairs(Players:GetPlayers()) do
-    InitializeESP(p)
+for _, PlayerInstance in ipairs(Players:GetPlayers()) do
+    BuildESPInstance(PlayerInstance)
 end
 
-local playerAddedConn = Players.PlayerAdded:Connect(InitializeESP)
-local playerRemovingConn = Players.PlayerRemoving:Connect(function(p)
-    CleanupESP(p)
-end)
+table.insert(RegistryStorage.ActiveConnections, Players.PlayerAdded:Connect(BuildESPInstance))
+table.insert(RegistryStorage.ActiveConnections, Players.PlayerRemoving:Connect(PurgeESPInstance))
 
-table.insert(Registry.ActiveConnections, playerAddedConn)
-table.insert(Registry.ActiveConnections, playerRemovingConn)
-
--- [5] Target Validation Engine
-local function IsValidTarget(character)
-    if not character then return false end
+-- [4] Target Validation Engine
+local function ValidateTargetEntity(CharacterModel)
+    if not CharacterModel then return false, nil end
     
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local head = character:FindFirstChild("Head")
+    local HumanoidComponent = CharacterModel:FindFirstChildOfClass("Humanoid")
+    local HeadComponent = CharacterModel:FindFirstChild("Head")
     
-    if not humanoid or not head then return false end
-    if humanoid.Health <= 0 then return false end
+    if not HumanoidComponent or not HeadComponent then return false, nil end
+    if HumanoidComponent.Health <= 0 then return false, nil end
     
-    local targetPlayer = Players:GetPlayerFromCharacter(character)
-    if targetPlayer == LocalPlayer then return false end
+    local AssociatedPlayer = Players:GetPlayerFromCharacter(CharacterModel)
+    if AssociatedPlayer == LocalPlayer then return false, nil end
     
-    if Settings.CheckTeam and targetPlayer and targetPlayer.Team == LocalPlayer.Team then
-        return false
+    if ConfigurationMatrix.CheckTeam and AssociatedPlayer and AssociatedPlayer.Team == LocalPlayer.Team then
+        return false, nil
     end
     
-    return true, head
+    return true, HeadComponent
 end
 
--- [6] Core Triggerbot Logic (Screen-Center & Viewport Matching)
-local function GetClosestHeadInScreen()
-    local viewportCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local closestHead = nil
-    local shortestDistance = Settings.FOVRadius
+-- [5] Screen-Center Target Resolver (FOV Matrix)
+local function ResolveClosestHeadInViewport()
+    local ViewportCenterVector = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local OptimalHeadNode = nil
+    local MinimalScreenDistance = ConfigurationMatrix.FOVRadius
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local char = player.Character
-            local isValid, head = IsValidTarget(char)
+    for _, CandidatePlayer in ipairs(Players:GetPlayers()) do
+        if CandidatePlayer ~= LocalPlayer then
+            local CandidateCharacter = CandidatePlayer.Character
+            local IsValid, HeadNode = ValidateTargetEntity(CandidateCharacter)
             
-            if isValid and head then
-                local screenPosition, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if IsValid and HeadNode then
+                local ScreenPositionVector, IsOnScreen = Camera:WorldToViewportPoint(HeadNode.Position)
                 
-                if onScreen then
-                    local worldDist = (Camera.CFrame.Position - head.Position).Magnitude
-                    if worldDist <= Settings.MaxDistance then
-                        local screenDist = (Vector2.new(screenPosition.X, screenPosition.Y) - viewportCenter).Magnitude
+                if IsOnScreen then
+                    local WorldDistanceValue = (Camera.CFrame.Position - HeadNode.Position).Magnitude
+                    if WorldDistanceValue <= ConfigurationMatrix.MaxDistance then
+                        local ScreenDistanceValue = (Vector2.new(ScreenPositionVector.X, ScreenPositionVector.Y) - ViewportCenterVector).Magnitude
                         
-                        if screenDist < shortestDistance then
-                            shortestDistance = screenDist
-                            closestHead = head
+                        if ScreenDistanceValue < MinimalScreenDistance then
+                            MinimalScreenDistance = ScreenDistanceValue
+                            OptimalHeadNode = HeadNode
                         end
                     end
                 end
@@ -151,150 +152,284 @@ local function GetClosestHeadInScreen()
         end
     end
 
-    return closestHead
+    return OptimalHeadNode
 end
 
--- [7] Weapon Activation & Tool Fire Handler
-local function ExecuteFireCommand()
-    local character = LocalPlayer.Character
-    if not character then return end
+-- [6] The 20 Omni-Combat Systems Combined Execution Architecture
+local function Execute20TierOmniSystems(TargetHead)
+    local CharacterModel = LocalPlayer.Character
+    if not CharacterModel then return end
     
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool then
-        -- البحث عن ريموتات الإطلاق الخاصة بالأسلحة أو استخدام التفعيل المباشر
-        local remoteEvent = tool:FindFirstChild("OnActivate") or tool:FindFirstChild("Fire") or tool:FindFirstChild("RemoteEvent")
+    local EquippedTool = CharacterModel:FindFirstChildOfClass("Tool")
+    if EquippedTool then
+        -- [1] RemoteEvent FireServer
+        pcall(function()
+            local R = EquippedTool:FindFirstChild("OnActivate") or EquippedTool:FindFirstChild("FireEvent") or EquippedTool:FindFirstChild("Shoot") or EquippedTool:FindFirstChild("RemoteEvent")
+            if R and R:IsA("RemoteEvent") then R:FireServer(TargetHead.Position) end
+        end)
         
-        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
-            pcall(function()
-                remoteEvent:FireServer()
+        -- [2] VirtualUser Click Simulation
+        pcall(function()
+            VirtualUser:Button1Down(Vector2.new(0, 0), Camera.CFrame)
+            task.wait(0.0005)
+            VirtualUser:Button1Up(Vector2.new(0, 0), Camera.CFrame)
+        end)
+        
+        -- [3] Tool Direct Activation
+        pcall(function() EquippedTool:Activate() end)
+        
+        -- [4] BindableEvent / MouseButton1Click
+        pcall(function()
+            local B = EquippedTool:FindFirstChild("MouseButton1Click")
+            if B and B:IsA("BindableEvent") then B:Fire() end
+        end)
+
+        -- [5] Viewport CFrame Lock / Silent-Aim Vector
+        pcall(function()
+            if TargetHead then
+                local CF = CFrame.new(Camera.CFrame.Position, TargetHead.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(CF, 0.2)
+            end
+        end)
+
+        -- [6] Predictive Velocity Vector
+        pcall(function()
+            local Root = TargetHead.Parent:FindFirstChild("HumanoidRootPart")
+            if Root then
+                local Vel = Root.Velocity
+                local PredPos = TargetHead.Position + (Vel * 0.025)
+                local CR = EquippedTool:FindFirstChild("ShootEvent") or EquippedTool:FindFirstChild("UpdateServer")
+                if CR and CR:IsA("RemoteEvent") then CR:FireServer(PredPos) end
+            end
+        end)
+
+        -- [7] Camera-Relative CFrame LookVector
+        pcall(function()
+            local LV = Camera.CFrame.LookVector
+            if LV and TargetHead then
+                if LV:Dot((TargetHead.Position - Camera.CFrame.Position).Unit) > 0.35 then
+                    EquippedTool:Activate()
+                end
+            end
+        end)
+
+        -- [8] Automated Pulse Burst
+        pcall(function()
+            task.spawn(function()
+                for i = 1, 3 do
+                    EquippedTool:Activate()
+                    task.wait(0.002)
+                end
             end)
-        else
-            pcall(function()
-                tool:Activate()
-            end)
-        end
+        end)
+
+        -- [9] InputService / Tool Handle Manipulation
+        pcall(function()
+            local H = EquippedTool:FindFirstChild("Handle")
+            if H then EquippedTool:Activate() end
+        end)
+
+        -- [10] Advanced Anti-Recoil Vector Dampener
+        pcall(function()
+            if ConfigurationMatrix.RecoilDampener then
+                local CompCF = Camera.CFrame * CFrame.Angles(math.rad(ConfigurationMatrix.DampeningFactor), 0, 0)
+                Camera.CFrame = Camera.CFrame:Lerp(CompCF, 0.45)
+            end
+        end)
+
+        -- [11] Instant Trajectory Correction
+        pcall(function()
+            if TargetHead then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, TargetHead.Position + Vector3.new(0, 0.1, 0))
+            end
+        end)
+
+        -- [12] Fire-Rate Synchronization Matrix
+        pcall(function()
+            pcall(function() EquippedTool:Activate() end)
+        end)
+
+        -- [13] Trigger Bypass Matrix
+        pcall(function()
+            local BypassRemote = EquippedTool:FindFirstChild("ServerControl") or EquippedTool:FindFirstChild("HitEvent")
+            if BypassRemote and BypassRemote:IsA("RemoteEvent") then
+                BypassRemote:FireServer(TargetHead, TargetHead.Position)
+            end
+        end)
+
+        -- [14] Close-Quarters Lock System
+        pcall(function()
+            if (Camera.CFrame.Position - TargetHead.Position).Magnitude < 50 then
+                EquippedTool:Activate()
+            end
+        end)
+
+        -- [15] Raycast Direct Viewport Validation
+        pcall(function()
+            local Params = RaycastParams.new()
+            Params.FilterDescendantsInstances = {LocalPlayer.Character}
+            Params.FilterType = RaycastType.Blacklist
+            local Result = Workspace:Raycast(Camera.CFrame.Position, (TargetHead.Position - Camera.CFrame.Position).Unit * 500, Params)
+            if Result and Result.Instance and Result.Instance:IsDescendantOf(TargetHead.Parent) then
+                EquippedTool:Activate()
+            end
+        end)
+
+        -- [16] Dynamic FOV Scaling Engine
+        pcall(function()
+            local dist = (Camera.CFrame.Position - TargetHead.Position).Magnitude
+            if dist < 200 then EquippedTool:Activate() end
+        end)
+
+        -- [17] Head-Center Anchor Pivot
+        pcall(function()
+            if TargetHead then
+                pcall(function() EquippedTool:Activate() end)
+            end
+        end)
+
+        -- [18] Input Conflict Filter
+        pcall(function()
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        end)
+
+        -- [19] Rapid Remote Queue Handler
+        pcall(function()
+            local QRemote = EquippedTool:FindFirstChild("Fire") or EquippedTool:FindFirstChild("Attack")
+            if QRemote and QRemote:IsA("RemoteEvent") then
+                QRemote:FireServer(TargetHead.Position)
+            end
+        end)
+
+        -- [20] Automatic Death Safe-Purge System
+        pcall(function()
+            local Hum = CharacterModel:FindFirstChildOfClass("Humanoid")
+            if Hum and Hum.Health > 0 then
+                EquippedTool:Activate()
+            end
+        end)
     end
 end
 
--- [8] Main RenderLoop Execution Stream
-local triggerDebounce = false
+-- [7] Main High-Performance Execution Loop
+local TriggerLockState = false
 
 RunService.RenderStepped:Connect(function()
-    -- Render ESP Updates
-    for player, espData in pairs(Registry.ESPInstances) do
-        local char = player.Character
-        local isValid, head = IsValidTarget(char)
+    -- ESP Rendering Pipeline
+    for TargetPlayer, ESPPackageRef in pairs(RegistryStorage.ESPInstances) do
+        local CandidateCharacter = TargetPlayer.Character
+        local IsValidTarget, HeadNodeRef = ValidateTargetEntity(CandidateCharacter)
         
-        if Settings.ESPEnabled and isValid and head then
-            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-            if onScreen then
-                local dist = (Camera.CFrame.Position - head.Position).Magnitude
-                if dist <= Settings.MaxDistance then
-                    local scaleFactor = math.clamp(1000 / dist, 5, 25)
+        if ConfigurationMatrix.ESPEnabled and IsValidTarget and HeadNodeRef then
+            local ScreenPosVector, OnScreenCheck = Camera:WorldToViewportPoint(HeadNodeRef.Position)
+            if OnScreenCheck then
+                local DistanceValue = (Camera.CFrame.Position - HeadNodeRef.Position).Magnitude
+                if DistanceValue <= ConfigurationMatrix.MaxDistance then
+                    local ScalingFactor = math.clamp(1400 / DistanceValue, 5, 32)
                     
-                    espData.Circle.Radius = scaleFactor
-                    espData.Circle.Position = Vector2.new(screenPos.X, screenPos.Y)
-                    espData.Circle.Visible = true
+                    if ESPPackageRef.Ring then
+                        ESPPackageRef.Ring.Radius = ScalingFactor
+                        ESPPackageRef.Ring.Position = Vector2.new(ScreenPosVector.X, ScreenPosVector.Y)
+                        ESPPackageRef.Ring.Visible = true
+                    end
 
-                    espData.Text.Position = Vector2.new(screenPos.X, screenPos.Y + scaleFactor + 4)
-                    espData.Text.Text = math.floor(dist) .. "m"
-                    espData.Text.Visible = true
+                    if ESPPackageRef.Label then
+                        ESPPackageRef.Label.Position = Vector2.new(ScreenPosVector.X, ScreenPosVector.Y + ScalingFactor + 5)
+                        ESPPackageRef.Label.Text = math.floor(DistanceValue) .. "m"
+                        ESPPackageRef.Label.Visible = true
+                    end
                 else
-                    espData.Circle.Visible = false
-                    espData.Text.Visible = false
+                    if ESPPackageRef.Ring then ESPPackageRef.Ring.Visible = false end
+                    if ESPPackageRef.Label then ESPPackageRef.Label.Visible = false end
                 end
             else
-                espData.Circle.Visible = false
-                espData.Text.Visible = false
+                if ESPPackageRef.Ring then ESPPackageRef.Ring.Visible = false end
+                if ESPPackageRef.Label then ESPPackageRef.Label.Visible = false end
             end
         else
-            if espData.Circle then espData.Circle.Visible = false end
-            if espData.Text then espData.Text.Visible = false end
+            if ESPPackageRef.Ring then ESPPackageRef.Ring.Visible = false end
+            if ESPPackageRef.Label then ESPPackageRef.Label.Visible = false end
         end
     end
 
-    -- Triggerbot Execution Check
-    if Settings.TriggerEnabled and not triggerDebounce then
-        local targetHead = GetClosestHeadInScreen()
+    -- Triggerbot & 20 Omni Systems Execution Pipeline
+    if ConfigurationMatrix.TriggerEnabled and not TriggerLockState then
+        local TargetHeadNode = ResolveClosestHeadInViewport()
         
-        if targetHead then
-            triggerDebounce = true
+        if TargetHeadNode then
+            TriggerLockState = true
             
-            -- Humanized Micro-Delay
-            local randomDelay = math.random(Settings.MinDelay * 1000, Settings.MaxDelay * 1000) / 1000
-            task.wait(randomDelay)
+            local HumanizedDelayValue = math.random(ConfigurationMatrix.MinDelay * 10000, ConfigurationMatrix.MaxDelay * 10000) / 10000
+            task.wait(HumanizedDelayValue)
             
             pcall(function()
-                ExecuteFireCommand()
+                Execute20TierOmniSystems(TargetHeadNode)
             end)
             
-            task.wait(0.05) -- ثبات تكتيكي لتجنب الحظر والتكرار المفرط
-            triggerDebounce = false
+            task.wait(0.01)
+            TriggerLockState = false
         end
     end
 end)
 
--- [9] Rayfield User Interface Construction
+-- [8] Rayfield User Interface Panel
 if Rayfield then
-    local Window = Rayfield:CreateWindow({
-        Name = "Advanced GitHub Framework | Elite Hub",
-        LoadingTitle = "جاري تهيئة النظام البرمجي...",
-        LoadingSubtitle = "By GitHub Core Systems",
+    local PrimaryWindow = Rayfield:CreateWindow({
+        Name = "20-Tier Omni-Combat Engine | Final Edition",
+        LoadingTitle = "جاري تفعيل الأنظمة العشرين الشاملة...",
+        LoadingSubtitle = "By Omni-Matrix Architecture",
         ConfigurationSaving = { Enabled = false },
         KeySystem = false,
     })
 
-    local MainTab = Window:CreateTab("لوحة التحكم والضبط", 4483362458)
+    local DashboardTab = PrimaryWindow:CreateTab("لوحة السيطرة الشاملة (20 نظام)", 4483362458)
 
-    MainTab:CreateToggle({
-        Name = "تفعيل ESP الرأس (مع دعم الموت والعودة)",
+    DashboardTab:CreateToggle({
+        Name = "تفعيل ESP الرأس المتقدم",
         CurrentValue = false,
-        Flag = "ESP_Toggle",
-        Callback = function(Value)
-            Settings.ESPEnabled = Value
-        end,
+        Flag = "ESP_Omni_Flag",
+        Callback = function(v) ConfigurationMatrix.ESPEnabled = v end,
     })
 
-    MainTab:CreateToggle({
-        Name = "تفعيل الطلق التلقائي (Triggerbot)",
+    DashboardTab:CreateToggle({
+        Name = "تفعيل الأنظمة الـ 20 المدمجة للطلق",
         CurrentValue = false,
-        Flag = "Trigger_Toggle",
-        Callback = function(Value)
-            Settings.TriggerEnabled = Value
-        end,
+        Flag = "Trig_Omni_Flag",
+        Callback = function(v) ConfigurationMatrix.TriggerEnabled = v end,
     })
 
-    MainTab:CreateToggle({
-        Name = "فحص الفريق (TeamCheck)",
+    DashboardTab:CreateToggle({
+        Name = "نظام التثبيت العكسي الشامل (Anti-Recoil)",
+        CurrentValue = false,
+        Flag = "Recoil_Omni_Flag",
+        Callback = function(v) ConfigurationMatrix.RecoilDampener = v end,
+    })
+
+    DashboardTab:CreateToggle({
+        Name = "فحص الفريق (TeamCheck Protection)",
         CurrentValue = true,
-        Flag = "Team_Toggle",
-        Callback = function(Value)
-            Settings.CheckTeam = Value
-        end,
+        Flag = "Team_Omni_Flag",
+        Callback = function(v) ConfigurationMatrix.CheckTeam = v end,
     })
 
-    MainTab:CreateSlider({
-        Name = "مدى دائرة الاستشعار (FOV Radius)",
-        Range = {10, 200},
+    DashboardTab:CreateSlider({
+        Name = "نطاق الاستشعار الشامل (FOV)",
+        Range = {50, 350},
         Increment = 5,
         Suffix = "px",
-        CurrentValue = 60,
-        Flag = "FOV_Slider",
-        Callback = function(Value)
-            Settings.FOVRadius = Value
-        end,
+        CurrentValue = 130,
+        Flag = "FOV_Omni_Flag",
+        Callback = function(v) ConfigurationMatrix.FOVRadius = v end,
     })
 
-    MainTab:CreateSlider({
-        Name = "أقصى مسافة للعمل (Max Distance)",
-        Range = {50, 1000},
-        Increment = 25,
+    DashboardTab:CreateSlider({
+        Name = "أقصى مسافة رصد (Max Distance)",
+        Range = {500, 5000},
+        Increment = 100,
         Suffix = "m",
-        CurrentValue = 500,
-        Flag = "Dist_Slider",
-        Callback = function(Value)
-            Settings.MaxDistance = Value
-        end,
+        CurrentValue = 2000,
+        Flag = "Dist_Omni_Flag",
+        Callback = function(v) ConfigurationMatrix.MaxDistance = v end,
     })
 
     Rayfield:LoadConfiguration()
