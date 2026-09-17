@@ -1,49 +1,149 @@
--- [[ Core Memory & Metatable Name Spoofer ]]
--- يقوم بخداع نظام قراءة الأسماء محلياً من ملفات الذاكرة للعبة لديك أنت فقط
+-- [[ Memory Name Spoofer GUI (Client-Sided Hooking) ]]
+-- واجهة مستخدم نظيفة لتغيير الأسماء واليوزرات من الذاكرة المحلية دون أي إضافات عضوية أو ESP
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- جدول لتخزين الأسماء الجديدة التي تحددها
+-- إعداد نظام الـ Hooking في الذاكرة
 getgenv().CustomNames = getgenv().CustomNames or {}
 
--- دالة لتغيير اسم أي لاعب جذرياً من الذاكرة المحلية
-local function spoofPlayer(targetPlayer, fakeName, fakeUser)
-	getgenv().CustomNames[targetPlayer] = {
-		Name = fakeUser or targetPlayer.Name,
-		DisplayName = fakeName or targetPlayer.DisplayName
-	}
-end
+if not getgenv().HookedMetatable then
+	getgenv().HookedMetatable = true
+	local mt = getrawmetatable(game)
+	setreadonly(mt, false)
+	local oldIndex = mt.__index
 
--- تفعيل خطاف الذاكرة (Metatable Hook) لمنع اللعبة من جلب الأسماء الحقيقية
-local mt = getrawmetatable(game)
-setreadonly(mt, false)
-
-local oldIndex = mt.__index
-
-mt.__index = newcclosure(function(self, index)
-	-- التحقق مما إذا كان الكائن هو لاعب ويتم طلب اسمه أو يوزره
-	if typeof(self) == "Instance" and self:IsA("Player") then
-		if getgenv().CustomNames[self] then
-			if index == "Name" then
-				return getgenv().CustomNames[self].Name
-			elseif index == "DisplayName" then
-				return getgenv().CustomNames[self].DisplayName
+	mt.__index = newcclosure(function(self, index)
+		if typeof(self) == "Instance" and self:IsA("Player") then
+			if getgenv().CustomNames[self] then
+				if index == "Name" then
+					return getgenv().CustomNames[self].Name
+				elseif index == "DisplayName" then
+					return getgenv().CustomNames[self].DisplayName
+				end
 			end
 		end
+		return oldIndex(self, index)
+	end)
+	setreadonly(mt, true)
+end
+
+-- بناء واجهة المستخدم (GUI)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MemorySpooferGUI"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- العنوان
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 15
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "تعديل أسماء اللاعبين (من الذاكرة)"
+Title.Parent = MainFrame
+
+-- قائمة اللاعبين (ScrollingFrame)
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Size = UDim2.new(0.9, 0, 0, 150)
+ScrollingFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+ScrollingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollingFrame
+
+-- خانة الاسم المعروض (DisplayName)
+local DisplayBox = Instance.new("TextBox")
+DisplayBox.Size = UDim2.new(0.9, 0, 0, 35)
+DisplayBox.Position = UDim2.new(0.05, 0, 0.58, 0)
+DisplayBox.PlaceholderText = "الاسم المعروض الجديد..."
+DisplayBox.Text = ""
+DisplayBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+DisplayBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+DisplayBox.TextSize = 14
+DisplayBox.Parent = MainFrame
+
+-- خانة اسم المستخدم (Username)
+local UserBox = Instance.new("TextBox")
+UserBox.Size = UDim2.new(0.9, 0, 0, 35)
+UserBox.Position = UDim2.new(0.05, 0, 0.70, 0)
+DisplayBox.TextSize = 14
+UserBox.PlaceholderText = "يوزر الحساب الجديد..."
+UserBox.Text = ""
+UserBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+UserBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+UserBox.TextSize = 14
+UserBox.Parent = MainFrame
+
+-- زر التفعيل
+local ApplyBtn = Instance.new("TextButton")
+ApplyBtn.Size = UDim2.new(0.9, 0, 0, 40)
+ApplyBtn.Position = UDim2.new(0.05, 0, 0.83, 0)
+ApplyBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 255)
+ApplyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ApplyBtn.TextSize = 15
+ApplyBtn.Font = Enum.Font.SourceSansBold
+ApplyBtn.Text = "تطبيق التعديل الجذري"
+ApplyBtn.Parent = MainFrame
+
+local selectedPlayer = nil
+
+-- تحديث قائمة اللاعبين داخل الواجهة
+local function updateList()
+	for _, child in ipairs(ScrollingFrame:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
 	end
-	return oldIndex(self, index)
-end)
 
-setreadonly(mt, true)
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, 0, 0, 30)
+			btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.TextSize = 13
+			btn.Text = p.Name .. " (" .. p.DisplayName .. ")"
+			btn.Parent = ScrollingFrame
 
--- مثال عملي لتطبيق التعديل على أول لاعب تجده في السيرفر (غير القيم باللي تبغاه)
-task.spawn(function()
-	task.wait(1)
-	local target = Players:GetPlayers()[2] -- اللاعب الثاني في السيرفر مثلاً
-	if target then
-		-- ضع هنا الاسم الجديد واليوزر الجديد الذي تريده أن يُقرأ من ملفات جهازك
-		spoofPlayer(target, "الاسم_الجديد", "Username_New")
-		print("تم تعديل ملفات وقراءة اسم اللاعب محلياً بنجاح!")
+			btn.MouseButton1Click:Connect(function()
+				selectedPlayer = p
+				Title.Text = "محدد: " .. p.Name
+			end)
+		end
+	end
+	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+end
+
+Players.PlayerAdded:Connect(updateList)
+Players.PlayerRemoving:Connect(updateList)
+updateList()
+
+-- عند الضغط على تطبيق التعديل
+ApplyBtn.MouseButton1Click:Connect(function()
+	if selectedPlayer then
+		local newDisplay = DisplayBox.Text ~= "" and DisplayBox.Text or selectedPlayer.DisplayName
+		local newUser = UserBox.Text ~= "" and UserBox.Text or selectedPlayer.Name
+
+		-- تخزين الأسماء المزيفة في الذاكرة عبر الخطاف
+		getgenv().CustomNames[selectedPlayer] = {
+			Name = newUser,
+			DisplayName = newDisplay
+		}
+
+		Title.Text = "تم التعديل في الذاكرة بنجاح!"
 	end
 end)
