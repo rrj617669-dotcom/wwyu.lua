@@ -1,133 +1,49 @@
--- [[ LocalScript - Name Changer GUI ]]
--- ضع هذا السكربت في StarterPlayerScripts أو PlayerGui عبر المنفذ الخاص بك
+-- [[ Core Memory & Metatable Name Spoofer ]]
+-- يقوم بخداع نظام قراءة الأسماء محلياً من ملفات الذاكرة للعبة لديك أنت فقط
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- إنشاء واجهة المستخدم (GUI)
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NameChangerGUI"
-ScreenGui.Parent = PlayerGui
+-- جدول لتخزين الأسماء الجديدة التي تحددها
+getgenv().CustomNames = getgenv().CustomNames or {}
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
-
--- عنوان القائمة
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 18
-Title.Font = Enum.Font.SourceSansBold
-Title.Text = "Name Changer GUI"
-Title.Parent = MainFrame
-
--- صندوق كتابة الاسم الجديد
-local TextBox = Instance.new("TextBox")
-TextBox.Size = UDim2.new(0.9, 0, 0, 40)
-TextBox.Position = UDim2.new(0.05, 0, 0.75, 0)
-TextBox.PlaceholderText = "اكتب الاسم الجديد هنا..."
-TextBox.Text = ""
-TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-TextBox.TextSize = 16
-TextBox.Font = Enum.Font.SourceSans
-TextBox.Parent = MainFrame
-
--- زر التغيير
-local ChangeBtn = Instance.new("TextButton")
-ChangeBtn.Size = UDim2.new(0.9, 0, 0, 40)
-ChangeBtn.Position = UDim2.new(0.05, 0, 0.86, 0)
-ChangeBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-ChangeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ChangeBtn.TextSize = 16
-ChangeBtn.Font = Enum.Font.SourceSansBold
-ChangeBtn.Text = "تغيير الاسم"
-ChangeBtn.Parent = MainFrame
-
--- قائمة اللاعبين (ScrollingFrame)
-local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(0.9, 0, 0, 220)
-ScrollingFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
-ScrollingFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollingFrame.Parent = MainFrame
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = ScrollingFrame
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local selectedPlayer = nil
-
--- دالة لتحديث قائمة اللاعبين في الواجهة
-local function updatePlayerList()
-	-- حذف الأزرار القديمة لتجنب التكرار
-	for _, child in ipairs(ScrollingFrame:GetChildren()) do
-		if child:IsA("TextButton") then
-			child:Destroy()
-		end
-	end
-
-	-- إضافة اللاعبين الحاليين
-	for _, player in ipairs(Players:GetPlayers()) do
-		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(1, 0, 0, 30)
-		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		btn.TextSize = 14
-		btn.Font = Enum.Font.SourceSans
-		btn.Text = player.Name
-		btn.Parent = ScrollingFrame
-
-		-- عند اختيار لاعب من القائمة
-		btn.MouseButton1Click:Connect(function()
-			selectedPlayer = player
-			Title.Text = "تم اختيار: " .. player.Name
-		end)
-	end
-	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+-- دالة لتغيير اسم أي لاعب جذرياً من الذاكرة المحلية
+local function spoofPlayer(targetPlayer, fakeName, fakeUser)
+	getgenv().CustomNames[targetPlayer] = {
+		Name = fakeUser or targetPlayer.Name,
+		DisplayName = fakeName or targetPlayer.DisplayName
+	}
 end
 
-Players.PlayerAdded:Connect(updatePlayerList)
-Players.PlayerRemoving:Connect(updatePlayerList)
-updatePlayerList()
+-- تفعيل خطاف الذاكرة (Metatable Hook) لمنع اللعبة من جلب الأسماء الحقيقية
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
 
--- تنفيذ تغيير الاسم محلياً (يظهر عندك أنت فقط)
-ChangeBtn.MouseButton1Click:Connect(function()
-	if selectedPlayer and selectedPlayer.Character and TextBox.Text ~= "" then
-		local humanoid = selectedPlayer.Character:FindFirstChildOfClass("Humanoid")
-		local head = selectedPlayer.Character:FindFirstChild("Head")
-		
-		if head then
-			-- البحث عن لوحة الاسم القديمة فوق الرأس وإزالتها أو تعديلها
-			local billboard = head:FindFirstChild("NameGuiOverride") or Instance.new("BillboardGui")
-			billboard.Name = "NameGuiOverride"
-			billboard.Size = UDim2.new(0, 200, 0, 50)
-			billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-			billboard.AlwaysOnTop = true
-			billboard.Parent = head
-			
-			local textLabel = billboard:FindFirstChild("TextLabel") or Instance.new("TextLabel")
-			textLabel.Size = UDim2.new(1, 0, 1, 0)
-			textLabel.BackgroundTransparency = 1
-			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-			textLabel.TextStrokeTransparency = 0 -- جعل النص واضحاً بإطار أسود
-			textLabel.TextSize = 18
-			textLabel.Font = Enum.Font.SourceSansBold
-			textLabel.Text = TextBox.Text
-			textLabel.Parent = billboard
-			
-			-- إخفاء الاسم الأصلي للعبة إن وجد
-			if humanoid then
-				humanoid.DisplayName = TextBox.Text
+local oldIndex = mt.__index
+
+mt.__index = newcclosure(function(self, index)
+	-- التحقق مما إذا كان الكائن هو لاعب ويتم طلب اسمه أو يوزره
+	if typeof(self) == "Instance" and self:IsA("Player") then
+		if getgenv().CustomNames[self] then
+			if index == "Name" then
+				return getgenv().CustomNames[self].Name
+			elseif index == "DisplayName" then
+				return getgenv().CustomNames[self].DisplayName
 			end
 		end
+	end
+	return oldIndex(self, index)
+end)
+
+setreadonly(mt, true)
+
+-- مثال عملي لتطبيق التعديل على أول لاعب تجده في السيرفر (غير القيم باللي تبغاه)
+task.spawn(function()
+	task.wait(1)
+	local target = Players:GetPlayers()[2] -- اللاعب الثاني في السيرفر مثلاً
+	if target then
+		-- ضع هنا الاسم الجديد واليوزر الجديد الذي تريده أن يُقرأ من ملفات جهازك
+		spoofPlayer(target, "الاسم_الجديد", "Username_New")
+		print("تم تعديل ملفات وقراءة اسم اللاعب محلياً بنجاح!")
 	end
 end)
