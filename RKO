@@ -1,149 +1,127 @@
--- [[ Memory Name Spoofer GUI (Client-Sided Hooking) ]]
--- واجهة مستخدم نظيفة لتغيير الأسماء واليوزرات من الذاكرة المحلية دون أي إضافات عضوية أو ESP
-
+-- [[ INTERACTIVE RBXM LOADER UI ]]
+local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- إعداد نظام الـ Hooking في الذاكرة
-getgenv().CustomNames = getgenv().CustomNames or {}
-
-if not getgenv().HookedMetatable then
-	getgenv().HookedMetatable = true
-	local mt = getrawmetatable(game)
-	setreadonly(mt, false)
-	local oldIndex = mt.__index
-
-	mt.__index = newcclosure(function(self, index)
-		if typeof(self) == "Instance" and self:IsA("Player") then
-			if getgenv().CustomNames[self] then
-				if index == "Name" then
-					return getgenv().CustomNames[self].Name
-				elseif index == "DisplayName" then
-					return getgenv().CustomNames[self].DisplayName
-				end
-			end
-		end
-		return oldIndex(self, index)
-	end)
-	setreadonly(mt, true)
+-- إزالة أي واجهة قديمة لو كانت شغالة
+if CoreGui:FindFirstChild("Interactive_RBXM_UI") then
+    CoreGui.Interactive_RBXM_UI:Destroy()
 end
 
--- بناء واجهة المستخدم (GUI)
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MemorySpooferGUI"
-ScreenGui.Parent = PlayerGui
-ScreenGui.ResetOnSpawn = false
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Interactive_RBXM_UI"
+screenGui.Parent = CoreGui
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -190)
-MainFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 320, 0, 350)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -175)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
 
--- العنوان
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 15
-Title.Font = Enum.Font.SourceSansBold
-Title.Text = "تعديل أسماء اللاعبين (من الذاكرة)"
-Title.Parent = MainFrame
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
 
--- قائمة اللاعبين (ScrollingFrame)
-local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(0.9, 0, 0, 150)
-ScrollingFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
-ScrollingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollingFrame.Parent = MainFrame
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 45)
+title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+title.Text = "اختر ملف RBXM للرسبنة"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 16
+title.Font = Enum.Font.SourceSansBold
+title.Parent = mainFrame
 
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = ScrollingFrame
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = title
 
--- خانة الاسم المعروض (DisplayName)
-local DisplayBox = Instance.new("TextBox")
-DisplayBox.Size = UDim2.new(0.9, 0, 0, 35)
-DisplayBox.Position = UDim2.new(0.05, 0, 0.58, 0)
-DisplayBox.PlaceholderText = "الاسم المعروض الجديد..."
-DisplayBox.Text = ""
-DisplayBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-DisplayBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-DisplayBox.TextSize = 14
-DisplayBox.Parent = MainFrame
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -20, 1, -70)
+scrollFrame.Position = UDim2.new(0, 10, 0, 55)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.Parent = mainFrame
 
--- خانة اسم المستخدم (Username)
-local UserBox = Instance.new("TextBox")
-UserBox.Size = UDim2.new(0.9, 0, 0, 35)
-UserBox.Position = UDim2.new(0.05, 0, 0.70, 0)
-DisplayBox.TextSize = 14
-UserBox.PlaceholderText = "يوزر الحساب الجديد..."
-UserBox.Text = ""
-UserBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-UserBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-UserBox.TextSize = 14
-UserBox.Parent = MainFrame
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Parent = scrollFrame
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Padding = UDim.new(0, 5)
 
--- زر التفعيل
-local ApplyBtn = Instance.new("TextButton")
-ApplyBtn.Size = UDim2.new(0.9, 0, 0, 40)
-ApplyBtn.Position = UDim2.new(0.05, 0, 0.83, 0)
-ApplyBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 255)
-ApplyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ApplyBtn.TextSize = 15
-ApplyBtn.Font = Enum.Font.SourceSansBold
-ApplyBtn.Text = "تطبيق التعديل الجذري"
-ApplyBtn.Parent = MainFrame
+-- دالة البحث عن الملفات وعرضها
+local function LoadFileList()
+    -- تنظيف القائمة القديمة
+    for _, child in ipairs(scrollFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
 
-local selectedPlayer = nil
+    local foundFiles = {}
+    if listfiles then
+        local success, files = pcall(function()
+            return listfiles("")
+        end)
+        if success and files then
+            for _, filePath in ipairs(files) do
+                if string.match(filePath, "%.rbxm$") then
+                    table.insert(foundFiles, filePath)
+                end
+            end
+        end
+    end
 
--- تحديث قائمة اللاعبين داخل الواجهة
-local function updateList()
-	for _, child in ipairs(ScrollingFrame:GetChildren()) do
-		if child:IsA("TextButton") then
-			child:Destroy()
-		end
-	end
+    if #foundFiles == 0 then
+        local noFileLbl = Instance.new("TextLabel")
+        noFileLbl.Size = UDim2.new(1, 0, 0, 40)
+        noFileLbl.BackgroundTransparency = 1
+        noFileLbl.Text = "ما فيه ملفات rbxm في مجلد المنفذ!"
+        noFileLbl.TextColor3 = Color3.fromRGB(200, 100, 100)
+        noFileLbl.TextSize = 14
+        noFileLbl.Font = Enum.Font.SourceSans
+        noFileLbl.Parent = scrollFrame
+        return
+    end
 
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer then
-			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, 0, 0, 30)
-			btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.TextSize = 13
-			btn.Text = p.Name .. " (" .. p.DisplayName .. ")"
-			btn.Parent = ScrollingFrame
+    for _, filePath in ipairs(foundFiles) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 40)
+        btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        btn.Text = filePath
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextSize = 13
+        btn.Font = Enum.Font.SourceSans
+        btn.Parent = scrollFrame
 
-			btn.MouseButton1Click:Connect(function()
-				selectedPlayer = p
-				Title.Text = "محدد: " .. p.Name
-			end)
-		end
-	end
-	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = btn
+
+        -- الحدث عند الضغط على الملف لرسبنته
+        btn.MouseButton1Click:Connect(function()
+            print("جاري محاولة رسبنة: " .. filePath)
+            local success, err = pcall(function()
+                -- استخدام دالة قراءة الملف واستيراده
+                if readfile then
+                    local content = readfile(filePath)
+                    -- هنا يتم استدعاء محرك فك الملفات ورسبنتها
+                    local model = game:GetService("InsertService"):LoadLocalAsset(filePath)
+                    if model then
+                        model.Parent = workspace
+                        if model:IsA("Model") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            model:MoveTo(LocalPlayer.Character.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+                        end
+                    end
+                end
+            end)
+            if not success then
+                warn("فشل الرسبنة: " .. tostring(err))
+            end
+        end)
+    end
+
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #foundFiles * 45)
 end
 
-Players.PlayerAdded:Connect(updateList)
-Players.PlayerRemoving:Connect(updateList)
-updateList()
-
--- عند الضغط على تطبيق التعديل
-ApplyBtn.MouseButton1Click:Connect(function()
-	if selectedPlayer then
-		local newDisplay = DisplayBox.Text ~= "" and DisplayBox.Text or selectedPlayer.DisplayName
-		local newUser = UserBox.Text ~= "" and UserBox.Text or selectedPlayer.Name
-
-		-- تخزين الأسماء المزيفة في الذاكرة عبر الخطاف
-		getgenv().CustomNames[selectedPlayer] = {
-			Name = newUser,
-			DisplayName = newDisplay
-		}
-
-		Title.Text = "تم التعديل في الذاكرة بنجاح!"
-	end
-end)
+LoadFileList()
